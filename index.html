@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="penumbra">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vaesen — Ficha do Agente</title>
+<link rel="stylesheet" href="css/themes.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="rascunhoAviso" class="rascunho-aviso" style="display:none;">
+  <span>Encontramos um rascunho salvo automaticamente neste navegador (não é a mesma coisa que o arquivo .json salvo).</span>
+  <div class="rascunho-aviso-acoes">
+    <button id="btnRestaurarRascunho" class="ghost">Restaurar rascunho</button>
+    <button id="btnDescartarRascunho" class="ghost">Descartar</button>
+  </div>
+</div>
+<div class="app-shell">
+
+  <!-- ============================================================ TOP BAR -->
+  <div class="top-bar">
+    <div class="brand">
+      <span class="mark">Vaesen</span>
+      <span class="sub">Ficha digital · Ordem Paranormal</span>
+    </div>
+    <div class="top-actions">
+      <div class="theme-switch">
+        <button id="btnTheme" class="ghost icon-btn">🎨 Estilo</button>
+        <div class="theme-menu" id="themeMenu">
+          <button data-theme-choice="penumbra"><span class="swatch" style="background:#4f8a72"></span>Penumbra</button>
+          <button data-theme-choice="bandagens"><span class="swatch" style="background:#8a2020"></span>Bandagens</button>
+          <button data-theme-choice="mistico"><span class="swatch" style="background:#37c8c2"></span>Místico</button>
+          <button data-theme-choice="floresta"><span class="swatch" style="background:#6a9c50"></span>Floresta</button>
+        </div>
+      </div>
+      <button id="btnCompendio" class="ghost icon-btn">📖 Compêndio</button>
+      <button id="btnNovo" class="ghost icon-btn">✕ Nova Ficha</button>
+      <button id="btnCarregar" class="icon-btn">📂 Carregar Ficha</button>
+      <input type="file" id="inputCarregar" class="file-input-hidden" accept=".json">
+      <button id="btnSalvar" class="primary icon-btn">💾 Salvar Ficha</button>
+    </div>
+  </div>
+
+  <!-- ============================================================ IDENTIDADE -->
+  <section class="panel">
+    <h2>Agente</h2>
+    <div class="identity-grid">
+      <div class="field">
+        <label for="fNome">Nome do Agente</label>
+        <input type="text" id="fNome" placeholder="Nome do personagem">
+      </div>
+      <div class="field">
+        <label for="fJogador">Jogador</label>
+        <input type="text" id="fJogador" placeholder="Seu nome">
+      </div>
+      <div class="field">
+        <label for="fOrigem">Origem</label>
+        <select id="fOrigem"></select>
+      </div>
+      <div class="field">
+        <label for="fClasse">Classe</label>
+        <select id="fClasse"></select>
+      </div>
+      <div class="field">
+        <label for="fTrilha">Trilha</label>
+        <select id="fTrilha"></select>
+        <small id="fTrilhaAviso" class="campo-aviso" style="display:none;">Obrigatório a partir do Estágio 2</small>
+      </div>
+    </div>
+    <div class="field" style="max-width:340px; margin-top:6px;">
+      <label for="fNex" id="fNexLabel">Estágio (Sobrevivente)</label>
+      <div class="nex-block">
+        <input type="range" id="fNex" min="0" max="20" step="5" value="0">
+        <span class="nex-value" id="fNexValue">Estágio 1 de 5</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ ATRIBUTOS -->
+  <section class="panel">
+    <h2>Atributos</h2>
+    <div class="attr-wrap">
+      <div class="attr-cluster" id="attrCluster"></div>
+    </div>
+  </section>
+
+  <!-- ============================================================ RECURSOS -->
+  <section class="panel">
+    <h2>Recursos &amp; Combate</h2>
+    <div class="resources" id="resourcesContainer"></div>
+    <div class="combat-derived">
+      <div class="defesa-badge">
+        <span class="defesa-badge-val" id="cdDefesa">10</span>
+        <span class="defesa-badge-label">Defesa</span>
+      </div>
+      <div class="defesa-detalhe">
+        <div class="defesa-detalhe-linha"><span>Base</span><strong>10</strong></div>
+        <div class="defesa-detalhe-linha"><span id="defesaAgiLabel">+ AGI (0)</span><strong id="defesaAgiVal">0</strong></div>
+        <div class="defesa-detalhe-linha">
+          <span>+ Outros</span>
+          <input type="number" id="fDefesaOutros" class="defesa-outros-input" value="0">
+        </div>
+      </div>
+      <div class="cd-item"><div class="cd-label">Deslocamento</div>
+        <div class="cd-val"><input type="text" id="fDeslocamento" value="9m (6q)" style="width:90px;text-align:center;font-family:var(--font-mono);"></div>
+      </div>
+      <div class="cd-item"><div class="cd-label">Bônus PE / Turno</div><div class="cd-val" id="cdPePorTurno">2</div></div>
+      <div class="cd-item"><div class="cd-label">Perícias Treinadas</div><div class="cd-val" id="cdPericiasQtd">0</div></div>
+    </div>
+  </section>
+
+  <!-- ============================================================ TABS -->
+  <section class="panel">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="pericias">Perícias</button>
+      <button class="tab-btn" data-tab="combate">Combate</button>
+      <button class="tab-btn" data-tab="habilidades">Habilidades</button>
+      <button class="tab-btn" data-tab="rituais">Rituais</button>
+      <button class="tab-btn" data-tab="inventario">Inventário</button>
+      <button class="tab-btn" data-tab="condicoes">Condições</button>
+      <button class="tab-btn" data-tab="notas">Notas</button>
+    </div>
+
+    <!-- PERICIAS -->
+    <div class="tab-panel active" id="tab-pericias">
+      <div class="pericias-toolbar">
+        <input type="text" id="pericBusca" placeholder="Buscar perícia...">
+      </div>
+      <div class="tabela-scroll">
+        <table class="pericias">
+          <thead>
+            <tr>
+              <th>Perícia</th><th>Atributo</th><th>Treino</th><th>Outros</th><th>Total</th>
+            </tr>
+          </thead>
+          <tbody id="pericTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- COMBATE -->
+    <div class="tab-panel" id="tab-combate">
+      <div class="card-list" id="ataquesList"></div>
+      <button id="btnAddAtaque" class="ghost" style="margin-top:10px;">+ Adicionar Ataque</button>
+    </div>
+
+    <!-- HABILIDADES -->
+    <div class="tab-panel" id="tab-habilidades">
+      <div class="grid-2">
+        <div>
+          <h3 style="font-size:.85rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-strong);">Poder de Origem</h3>
+          <div class="card-list" id="origemPoderCard"></div>
+
+          <h3 id="nexTrackTitle" style="font-size:.85rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-strong);margin-top:18px;">Progressão de NEX</h3>
+          <div class="nex-track" id="nexTrack"></div>
+
+          <h3 style="font-size:.85rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-strong);margin-top:18px;">Habilidades de Trilha</h3>
+          <div class="card-list" id="trilhaHabilidadesList"></div>
+        </div>
+        <div>
+          <h3 style="font-size:.85rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-strong);">Poderes Escolhidos</h3>
+          <div class="card-list" id="poderesEscolhidosList"></div>
+          <div class="add-row">
+            <select id="selectPoderDisponivel"></select>
+            <button id="btnAddPoder">Adicionar</button>
+          </div>
+
+          <h3 style="font-size:.85rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-strong);margin-top:18px;">Poderes Paranormais</h3>
+          <div class="card-list" id="poderesParanormaisList"></div>
+          <div class="add-row">
+            <select id="selectPoderParanormal"></select>
+            <button id="btnAddPoderParanormal">Adicionar</button>
+          </div>
+
+          <h3 style="font-size:.85rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-strong);margin-top:18px;">Poderes Customizados</h3>
+          <p class="hint-texto">Poderes seus, escritos do zero (não aparecem no Compêndio).</p>
+          <div class="card-list" id="poderesCustomizadosList"></div>
+          <button id="btnAddPoderCustomizado" class="ghost" style="margin-top:10px;">+ Criar Poder Customizado</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RITUAIS -->
+    <div class="tab-panel" id="tab-rituais">
+      <div class="add-row">
+        <select id="selectRitual"></select>
+        <button id="btnAddRitual">+ Aprender Ritual</button>
+      </div>
+      <div class="card-list" id="rituaisList" style="margin-top:14px;"></div>
+    </div>
+
+    <!-- INVENTARIO -->
+    <div class="tab-panel" id="tab-inventario">
+      <div class="card-list" id="inventarioList"></div>
+      <button id="btnAddItem" class="ghost" style="margin-top:10px;">+ Adicionar Item</button>
+    </div>
+
+    <!-- CONDICOES -->
+    <div class="tab-panel" id="tab-condicoes">
+      <label>Condições disponíveis (clique para aplicar)</label>
+      <div class="condicoes-pool" id="condicoesPool"></div>
+      <label style="margin-top:14px;">Condições ativas</label>
+      <div class="condicoes-ativas" id="condicoesAtivas"></div>
+    </div>
+
+    <!-- NOTAS -->
+    <div class="tab-panel" id="tab-notas">
+      <label for="fNotas">Anotações livres (histórico, contatos, pistas, etc.)</label>
+      <textarea id="fNotas" style="min-height:220px;"></textarea>
+    </div>
+  </section>
+
+  <!-- ============================================================ MODAL -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal-box" id="modalBox">
+      <h3 id="modalTitulo">Título</h3>
+      <p id="modalMensagem">Mensagem</p>
+      <div class="modal-actions">
+        <button id="modalBtnCancelar" class="ghost">Cancelar</button>
+        <button id="modalBtnConfirmar" class="primary">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ MODAL ESCOLHA DE TRILHA (bloqueante) -->
+  <div class="modal-overlay" id="modalTrilhaOverlay">
+    <div class="modal-box modal-trilha-box">
+      <h3>Escolha uma Trilha — Estágio 2</h3>
+      <p>Não existe Estágio 2 sem trilha em Ordem Paranormal. Escolha uma das trilhas abaixo para continuar (dá pra mudar de ideia depois, voltando ao Estágio 1).</p>
+      <div class="trilha-opcoes" id="modalTrilhaOpcoes"></div>
+      <div class="modal-actions">
+        <button id="modalTrilhaCancelar" class="ghost">Cancelar (voltar ao Estágio 1)</button>
+        <button id="modalTrilhaConfirmar" class="primary" disabled>Confirmar Trilha</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ MODAL COMPÊNDIO -->
+  <div class="modal-overlay" id="compendioOverlay">
+    <div class="modal-box compendio-box">
+      <div class="compendio-head">
+        <h3>Compêndio</h3>
+        <button id="btnFecharCompendio" class="ghost icon-btn">✕ Fechar</button>
+      </div>
+      <div class="tabs" id="compendioTabs">
+        <button class="tab-btn active" data-ctab="origens">Origens</button>
+        <button class="tab-btn" data-ctab="classes">Classes &amp; Trilhas</button>
+        <button class="tab-btn" data-ctab="paranormais">Poderes Paranormais</button>
+        <button class="tab-btn" data-ctab="rituais">Rituais</button>
+        <button class="tab-btn" data-ctab="condicoes">Condições</button>
+      </div>
+      <input type="text" id="compendioBusca" placeholder="Buscar no compêndio...">
+      <div class="compendio-body" id="compendioBody"></div>
+    </div>
+  </div>
+
+  <footer class="credits">Ficha não-oficial de fã · Ordem Paranormal RPG é propriedade da Jambô Editora · Dados salvos localmente em arquivo</footer>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

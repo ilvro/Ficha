@@ -1,0 +1,115 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Space+Mono:wght@400;700&display=swap');
+
+/* ==========================================================================
+   TEMAS — variáveis de cor / textura por tema.
+   Troque de tema pelo botão no topo da ficha (não precisa editar isto para
+   jogar — só se quiser CRIAR um 4º tema, aí copie um bloco e mude o valor
+   de data-theme e as cores).
+   ========================================================================== */
+
+:root{
+  --font-display: 'Cinzel', serif;
+  --font-body: 'Spectral', serif;
+  --font-mono: 'Space Mono', monospace;
+  --radius: 3px;
+  --shadow-deep: 0 12px 40px rgba(0,0,0,.55);
+}
+
+/* --------------------------------------------------------------------
+   TEMA 1 — "Penumbra" (padrão): pedra escura + verde-vela + brasa âmbar.
+   Inspirado nas ruas noturnas e no cômodo verde do moodboard.
+   -------------------------------------------------------------------- */
+[data-theme="penumbra"]{
+  --bg: #101317;
+  --bg-alt: #171b20;
+  --panel: #1b2027;
+  --panel-alt: #20262e;
+  --border: #333d43;
+  --text: #dcd6c8;
+  --text-dim: #8b9198;
+  --text-faint: #5b636b;
+  --accent: #4f8a72;
+  --accent-strong: #6fb497;
+  --accent-glow: rgba(111,180,151,.35);
+  --ember: #c97b4a;
+  --ember-strong: #e2955f;
+  --danger: #a4402f;
+  --text-loud: #e8e1d3;
+  --bg-image:
+    radial-gradient(ellipse at 20% -10%, rgba(79,138,114,.14), transparent 55%),
+    radial-gradient(ellipse at 100% 110%, rgba(201,123,74,.10), transparent 50%);
+}
+
+/* --------------------------------------------------------------------
+   TEMA 2 — "Bandagens": osso/branco sobre negro, vermelho de sangue seco.
+   Inspirado no Caçador enfaixado e nas ruas empedradas noturnas.
+   -------------------------------------------------------------------- */
+[data-theme="bandagens"]{
+  --bg: #0c0a09;
+  --bg-alt: #171210;
+  --panel: #1c1613;
+  --panel-alt: #241c17;
+  --border: #4a3529;
+  --text: #ece5d5;
+  --text-dim: #b9ac95;
+  --text-faint: #7d7060;
+  --accent: #a4302a;
+  --accent-strong: #d1483f;
+  --accent-glow: rgba(209,72,63,.32);
+  --ember: #8f6a3d;
+  --ember-strong: #c9a463;
+  --danger: #d1483f;
+  --text-loud: #ece5d5;
+  --bg-image:
+    radial-gradient(ellipse at 50% -20%, rgba(209,72,63,.14), transparent 55%);
+}
+
+/* --------------------------------------------------------------------
+   TEMA 3 — "Místico": teal profundo + ciano + dourado, painel de laboratório.
+   Inspirado no quarto verde-tecnológico e vitrais do moodboard (leitura Arcane).
+   -------------------------------------------------------------------- */
+[data-theme="mistico"]{
+  --bg: #071417;
+  --bg-alt: #0c1c20;
+  --panel: #0f2226;
+  --panel-alt: #12292e;
+  --border: #1f4147;
+  --text: #dff2f1;
+  --text-dim: #85adab;
+  --text-faint: #4d6c6a;
+  --accent: #37c8c2;
+  --accent-strong: #5fe6df;
+  --accent-glow: rgba(55,200,194,.32);
+  --ember: #c9a24b;
+  --ember-strong: #e2ba63;
+  --danger: #b5453a;
+  --text-loud: #dff2f1;
+  --bg-image:
+    radial-gradient(ellipse at 15% 0%, rgba(55,200,194,.16), transparent 55%),
+    radial-gradient(ellipse at 100% 100%, rgba(201,162,75,.10), transparent 50%);
+}
+
+/* --------------------------------------------------------------------
+   TEMA 4 — "Floresta": verde-musgo calmo, madeira e luz filtrada por folhas.
+   Mais claro/orgânico que os outros — pensado pra ser mais tranquilo de olhar.
+   -------------------------------------------------------------------- */
+[data-theme="floresta"]{
+  --bg: #10160f;
+  --bg-alt: #171f15;
+  --panel: #1a2318;
+  --panel-alt: #202b1d;
+  --border: #34432d;
+  --text: #d9e0cf;
+  --text-dim: #96a488;
+  --text-faint: #5e6d54;
+  --accent: #6a9c50;
+  --accent-strong: #8ec26a;
+  --accent-glow: rgba(142,194,106,.32);
+  --ember: #a68a4a;
+  --ember-strong: #c7a862;
+  --danger: #a4402f;
+  --text-loud: #e6ecdc;
+  --bg-image:
+    radial-gradient(ellipse at 20% -10%, rgba(110,170,90,.16), transparent 55%),
+    radial-gradient(ellipse at 100% 110%, rgba(166,138,74,.10), transparent 50%);
+}

@@ -1,0 +1,15 @@
+Coloque aqui as imagens dos rituais (PNG, JPG, WEBP etc).
+
+No js/data.js, adicione um campo "imagem" no ritual apontando pro arquivo,
+por exemplo:
+
+  {
+    id: "toque-sombrio",
+    nome: "Toque Sombrio",
+    ...
+    imagem: "img/rituais/toque-sombrio.png",
+  },
+
+Também dá pra usar uma URL (https://...) em vez de um arquivo local.
+Se o campo "imagem" não existir ou o arquivo não for encontrado, o ritual
+aparece normalmente, só sem a imagem.

@@ -1,0 +1,48 @@
+Coloque aqui os arquivos de imagem da ficha:
+
+  img/attributes.png          -> a arte do pentágono de atributos (só o
+                                  desenho com os hexágonos, sigilos e nomes
+                                  dos atributos — os NÚMEROS são desenhados
+                                  por cima disso pelo próprio app).
+
+  img/veins-texture-bars.svg  -> a textura usada de fundo nas barras de
+                                  Vida/Sanidade/Esforço (aparece tanto na
+                                  parte preenchida quanto na parte vazia).
+
+  img/icons/pv-full.svg
+  img/icons/pv-half.svg
+  img/icons/pv-low.svg
+  img/icons/pv-empty.svg
+  img/icons/sanity-full.svg
+  img/icons/sanity-half.svg
+  img/icons/sanity-low.svg
+  img/icons/sanity-empty.svg
+  img/icons/effort-full.svg
+  img/icons/effort-half.svg
+  img/icons/effort-empty.svg
+                              -> os ícones do medalhão de cada barra, que o
+                                 app troca sozinho conforme o estado atual:
+                                 - Vida:     >50% = full · 25–50% = half · 0–25% = low · 0 = empty
+                                 - Sanidade: >50% = full · 25–50% = half · 0–25% = low · 0 = empty
+                                 - Esforço:  >50% = full ·  >0–50% = half ·      0 = empty
+
+  img/icons/heal-icon.svg     -> ícone do botão "Curar" que aparece do lado
+                                  de "Temp." quando aquele recurso zera.
+
+Se algum arquivo não existir, o navegador só mostra um ícone quebrado no
+lugar dele — não trava o resto da ficha.
+
+SE UMA IMAGEM NÃO APARECER mesmo depois de colocar o arquivo na pasta certa:
+abra o DevTools do navegador (F12) → aba "Network" (ou "Rede") → recarregue
+a página → procure a linha do arquivo com status vermelho/404. Ela mostra a
+URL exata que o navegador tentou carregar — compare com o caminho e o nome
+do arquivo (maiúscula/minúscula importa!) que você salvou. Erros comuns:
+".PNG" vs ".png", espaço a mais no nome, ou salvar dentro de uma subpasta
+errada.
+
+AJUSTE FINO: os números do pentágono são posicionados por porcentagem em
+css/style.css, na seção ".attr-valor-*" (ex: ".attr-valor-agi{ top:21%; left:53%; }").
+Se o seu attributes.png tiver os hexágonos em posições um pouco diferentes
+do que eu calculei (ou proporção de tela diferente), é só ajustar esses
+números de % ali — e o "aspect-ratio: 346/268" logo acima, na regra
+".attr-cluster", pra bater com a proporção real do seu PNG.
