@@ -203,16 +203,19 @@ input[type=range]{
   accent-color: var(--accent-strong);
 }
 
-/* ---------------------------------------------------------------- attribute cluster (img/attributes.png) */
+/* ---------------------------------------------------------------- attribute cluster (img/attributes.png) + NEX/NVL badges */
 .attr-wrap{
   display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
   padding-top: 6px;
 }
 /* Proporção e posições medidas direto no attributes.png real (1036×1044).
    Se você trocar a imagem por uma com proporção/layout diferente, ajuste o
-   aspect-ratio aqui embaixo e os "top/left" de cada ".attr-valor-*"/
-   ".attr-nex"/".attr-nvl" mais abaixo. */
+   aspect-ratio aqui embaixo e os "top/left" de cada ".attr-item-*" mais
+   abaixo. */
 .attr-cluster{
   position: relative;
   width: 420px;
@@ -226,9 +229,11 @@ input[type=range]{
   height: 100%;
   object-fit: contain;
 }
-/* Grupo (◀ número ▶) sobreposto na arte — o WRAPPER é posicionado em % nas
-   coordenadas medidas na imagem real (ajuste fino se seu attributes.png
-   tiver os hexágonos em posições um pouco diferentes destas). */
+/* Grupo (◀ número ▶) sobreposto na arte — posicionado ACIMA da sigla de
+   cada atributo (não em cima dela — senão os dois se misturam e ficam
+   ilegíveis, tipo "F05" em vez de "FOR" + "5"). Coordenadas medidas na
+   imagem real e deslocadas pra cima da letra; ajuste fino se seu
+   attributes.png tiver os hexágonos em posições um pouco diferentes. */
 .attr-item{
   position: absolute;
   display: flex;
@@ -237,65 +242,75 @@ input[type=range]{
   gap: 3px;
   transform: translate(-50%, -50%);
 }
-.attr-item-agi{ top: 27.8%; left: 49.6%; }
-.attr-item-for{ top: 49.7%; left: 20.1%; }
-.attr-item-int{ top: 49.8%; left: 80.7%; }
-.attr-item-pre{ top: 87.3%; left: 26.3%; }
-.attr-item-vig{ top: 87.8%; left: 72.5%; }
+.attr-item-agi{ top: 17%;   left: 49.6%; }
+.attr-item-for{ top: 39%;   left: 17%; }
+.attr-item-int{ top: 39%;   left: 80.7%; }
+.attr-item-pre{ top: 76.5%; left: 28%; }
+.attr-item-vig{ top: 77%;   left: 72.5%; }
 
 .attr-btn{
-  background: rgba(0,0,0,.32);
-  border: 1px solid rgba(255,255,255,.35);
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(255,255,255,.4);
   color: #fff;
-  padding: 1px 6px;
-  font-size: .64rem;
+  padding: 2px 6px;
+  font-size: .68rem;
   border-radius: 20px;
   line-height: 1.5;
 }
-.attr-btn:hover{ background: rgba(0,0,0,.5); box-shadow: none; }
+.attr-btn:hover{ background: rgba(0,0,0,.55); box-shadow: none; }
 
 /* O seletor usa "input.attr-valor" (em vez de só ".attr-valor") de
    propósito: a regra genérica de <input> lá em cima tem prioridade maior
    que uma classe sozinha, então sem o "input" na frente essas regras eram
    ignoradas. */
 input.attr-valor{
-  width: 2.1em;
+  width: 1.6em;
   text-align: center;
   background: transparent;
   border: none;
   border-radius: 0;
   padding: 0;
   color: #fff;
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-size: 1.7rem;
-  text-shadow: 0 1px 3px rgba(0,0,0,.5);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 2.1rem;
+  text-shadow: 0 1px 3px rgba(0,0,0,.6), 0 0 6px rgba(0,0,0,.5);
   -moz-appearance: textfield;
 }
 input.attr-valor::-webkit-outer-spin-button,
 input.attr-valor::-webkit-inner-spin-button{ opacity: 0; -webkit-appearance: none; margin: 0; }
 input.attr-valor:focus{ outline: none; box-shadow: none; }
 
-/* NEX/NVL — a própria arte já tem os hexágonos vazios nos dois cantos de
-   cima, então só sobrepomos o texto, igual aos atributos (mas sem ser um
-   input, já que NEX/NVL não se edita clicando neles). */
-.attr-nex, .attr-nvl{
-  position: absolute;
-  top: 11.3%;
-  width: 20%;
-  text-align: center;
-  transform: translate(-50%, -50%);
-  color: #fff;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 1.1rem;
-  text-shadow: 0 1px 3px rgba(0,0,0,.5);
-  pointer-events: none;
-  line-height: 1.15;
+/* NEX/NVL — círculos separados (a arte já tem hexágonos pra eles nos
+   cantos de cima, mas ficam pequenos demais pro texto "Estágio X" caber
+   junto, então por enquanto ficam de fora, num badge redondo maior). */
+.hex-badge{
+  width: 108px; height: 108px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--panel-alt), var(--panel) 70%);
+  border: 2px dashed var(--accent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex-shrink: 0;
+  box-shadow: 0 0 16px var(--accent-glow) inset;
 }
-.attr-nex{ left: 21.2%; }
-.attr-nex.attr-nex-compacto{ font-size: .64rem; letter-spacing: .04em; }
-.attr-nvl{ left: 78.8%; }
+.hex-badge-val{
+  font-family: var(--font-mono);
+  font-size: 1.4rem;
+  color: var(--accent-strong);
+  line-height: 1;
+}
+.hex-badge-val.hex-badge-val-compacto{ font-size: .86rem; }
+.hex-badge-label{
+  font-family: var(--font-display);
+  font-size: .62rem;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
 
 /* ---------------------------------------------------------------- resource bars (medalhão + barra grossa + temp) */
 .resources{ display:flex; flex-direction: column; gap: 22px; margin-top: 6px; }
@@ -531,35 +546,132 @@ input.attr-valor:focus{ outline: none; box-shadow: none; }
 /* ---------------------------------------------------------------- pericias table */
 .pericias-toolbar{ display:flex; gap:10px; margin-bottom: 10px; }
 .pericias-toolbar input{ flex:1; }
-table.pericias{
-  width:100%;
-  border-collapse: collapse;
-  font-size: .88rem;
+
+/* ---------------------------------------------------------------- lista de perícias (linhas, não mais tabela) */
+.pericias-list-head,
+.pericia-row{
+  display:grid;
+  grid-template-columns: 1fr 60px 56px 56px 60px;
+  align-items:center;
+  column-gap: 10px;
 }
-table.pericias th{
-  text-align:left;
-  font-size: .66rem;
+.pericias-list-head{
+  padding: 0 10px 10px;
+}
+.pericias-list-head > span{
+  font-size:.66rem;
   letter-spacing:.12em;
   text-transform:uppercase;
   color: var(--text-faint);
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--border);
+  text-align:center;
 }
-table.pericias td{
-  padding: 6px 8px;
-  border-bottom: 1px solid rgba(255,255,255,.04);
-  vertical-align: middle;
+.plh-nome{
+  text-align:left !important;
+  display:inline-flex;
+  width:fit-content;
+  background: var(--text-loud);
+  color: var(--bg);
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-weight:700;
+  letter-spacing:.08em;
 }
-table.pericias tr:hover td{ background: rgba(255,255,255,.02); }
-table.pericias .p-nome{ font-weight: 600; }
-table.pericias .p-nome small{ display:block; color: var(--text-faint); font-weight:400; font-size:.72rem; }
-table.pericias select{ padding: 4px 6px; font-size: .8rem; }
-table.pericias input[type=number]{ width: 56px; padding:4px 6px; text-align:center; }
-table.pericias .p-total{
+.pericias-list-body{ display:flex; flex-direction:column; }
+.pericia-row{
+  padding: 10px;
+  border-bottom: 1px solid rgba(255,255,255,.05);
+  border-left: 2px solid transparent;
+  transition: border-color .15s, background .15s;
+}
+.pericia-row:hover{
+  background: rgba(255,255,255,.02);
+  border-left-color: var(--ember);
+}
+.pr-nome{ display:flex; align-items:center; gap:10px; min-width:0; }
+.pr-icone{
+  width:30px; height:30px;
+  flex-shrink:0;
+  background: var(--panel-alt);
+  border:1px solid var(--border);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+}
+.pr-nome-col{ min-width:0; }
+.pr-nome-txt{ font-weight:600; font-size:.92rem; }
+.pr-nome-txt small{ display:block; color: var(--text-faint); font-weight:400; font-size:.72rem; }
+.pr-treino{ display:flex; justify-content:center; }
+.pr-atrib{
+  text-align:center;
+  font-size:.78rem;
+  letter-spacing:.06em;
+  color: var(--text-dim);
+  border-left: 1px solid var(--border);
+}
+.pr-extra{ text-align:center; border-left: 1px solid var(--border); }
+.pr-extra input[type=number]{ width: 48px; padding:4px 6px; text-align:center; }
+.pr-total{
   font-family: var(--font-mono);
-  color: var(--accent-strong);
-  white-space: nowrap;
+  font-weight:700;
+  font-size:1.15rem;
+  color: var(--text-loud);
+  text-align:center;
+  border-left: 1px solid var(--border);
 }
+.pr-total .p-bonus-poder{ display:block; font-size:.6rem; font-weight:400; color: var(--accent-strong); }
+
+/* dica de dados: sigla + pips visuais, embaixo do nome da perícia */
+.pericia-dados{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-top:2px;
+}
+.pericia-dados-txt{
+  font-family: var(--font-mono);
+  font-weight:700;
+  font-size:.76rem;
+  color: var(--accent-strong);
+}
+.dado-pips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:3px;
+}
+.dado-pip{
+  width:7px; height:7px;
+  flex-shrink:0;
+  background: var(--accent-strong);
+  border-radius:50%;
+  box-shadow: 0 0 4px var(--accent-glow);
+}
+
+/* dropdown de treino de perícia (ícones, em vez de texto) */
+.treino-dropdown{ position:relative; display:inline-block; }
+.treino-toggle{
+  display:flex; align-items:center; justify-content:center;
+  width:38px; height:38px; padding:6px;
+  background: radial-gradient(circle at 35% 30%, var(--panel-alt), var(--panel) 70%);
+  border:1px solid var(--border); border-radius: 50%;
+}
+.treino-toggle:hover{ border-color: var(--accent); box-shadow:none; }
+.treino-toggle .treino-icon{ width:100%; height:100%; object-fit:contain; }
+.treino-menu{
+  position:absolute; left:0; top: calc(100% + 6px);
+  background: var(--panel); border:1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-deep);
+  padding: 6px;
+  display:none;
+  min-width: 150px;
+  z-index: 20;
+}
+.treino-dropdown.open .treino-menu{ display:block; }
+.treino-opcao{
+  width:100%; display:flex; align-items:center; gap:8px;
+  text-align:left; border:none; background:transparent; text-transform:none;
+  letter-spacing:0; font-size:.82rem; padding:6px 8px;
+}
+.treino-opcao:hover{ background: var(--bg-alt); box-shadow:none; }
+.treino-opcao.selecionada{ color: var(--accent-strong); background: var(--accent-glow); }
+.treino-opcao .treino-icon{ width:20px; height:20px; object-fit:contain; flex-shrink:0; }
 
 /* ---------------------------------------------------------------- cards / lists */
 .card-list{ display:flex; flex-direction:column; gap:10px; }
@@ -578,6 +690,20 @@ table.pericias .p-total{
 .card .card-prereq{ color: var(--ember-strong); margin-top: 2px; }
 .card .card-desc{ font-size: .86rem; color: var(--text-dim); white-space: pre-line; }
 .card .card-tags{ display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+.card .card-bonus{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  font-family: var(--font-mono);
+  font-size:.72rem;
+  font-weight:700;
+  color: var(--accent-strong);
+  background: var(--accent-glow);
+  border:1px solid var(--accent);
+  border-radius: 20px;
+  padding: 2px 10px;
+  margin-bottom: 8px;
+}
 .tag{
   font-size: .66rem;
   letter-spacing:.08em;
@@ -962,7 +1088,15 @@ textarea{ min-height: 70px; resize: vertical; }
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
-table.pericias{ min-width: 560px; }
+
+@media (max-width: 560px){
+  .pericias-list-head,
+  .pericia-row{ grid-template-columns: 1fr 50px 40px 46px 50px; column-gap: 6px; }
+  .pr-nome-txt{ font-size: .84rem; }
+  .pr-icone{ width:24px; height:24px; }
+  .treino-toggle{ width:32px; height:32px; padding:4px; }
+  .pr-total{ font-size: 1rem; }
+}
 
 @media (max-width: 720px){
   body{ font-size: 15px; }
@@ -991,7 +1125,7 @@ table.pericias{ min-width: 560px; }
 
 @media (max-width: 420px){
   .attr-cluster{ width: 300px; }
-  input.attr-valor{ font-size: 1.3rem; }
+  input.attr-valor{ font-size: 1.8rem; }
   .attr-btn{ font-size: .58rem; padding: 1px 5px; }
   .r-marca-btn img{ width: 13px; height: 13px; }
 }

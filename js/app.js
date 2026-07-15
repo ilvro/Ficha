@@ -6,10 +6,10 @@
    ========================================================================== */
 
 const TREINOS = [
-  { valor: 0,  nome: "Destreinado" },
-  { valor: 5,  nome: "Treinado" },
-  { valor: 10, nome: "Veterano" },
-  { valor: 15, nome: "Expert" },
+  { valor: 0,  nome: "Destreinado", icone: "img/icons/untrained.svg" },
+  { valor: 5,  nome: "Treinado",    icone: "img/icons/trained.svg" },
+  { valor: 10, nome: "Veterano",    icone: "img/icons/veteran.svg" },
+  { valor: 15, nome: "Expert",      icone: "img/icons/expert.svg" },
 ];
 
 function estadoPadrao(){
@@ -112,6 +112,14 @@ function somaPorEstagioAlcancado(mapa, estagioAtualVal){
   return Object.keys(mapa).reduce((acc, k) => acc + (parseInt(k, 10) <= estagioAtualVal ? mapa[k] : 0), 0);
 }
 
+// Alguns poderes de classe (Saúde/Sanidade/Esforço Aprimorado) dão bônus
+// permanente de PV/SAN/PE — como são "poderes escolhidos" (e não algo
+// automático de trilha), verificamos se o jogador já escolheu esse poder
+// específico pelo nome.
+function temPoderEscolhido(nome){
+  return state.poderesEscolhidos.some(p => p.nome === nome);
+}
+
 function pvMax(){
   const c = classeAtual(); const steps = passosNex(); const vig = state.atributos.vig;
   const somaAtributo = c.escalaAtributoPorNex === false ? 0 : vig;
@@ -131,19 +139,22 @@ function pvMax(){
   // progressão normal, usando "pvBonusPorEstagio" (ex: Durão do
   // Sobrevivente: +4 PV no Estágio 2, +2 PV adicionais no Estágio 3).
   const bonusTrilha = (t && t.pvBonusPorEstagio) ? somaPorEstagioAlcancado(t.pvBonusPorEstagio, estagio) : 0;
+  const bonusSaude = temPoderEscolhido("Saúde Aprimorada") ? 5 : 0;
 
   const bonus = (state.bonusTransicao && state.bonusTransicao.pv) || 0;
-  return c.pv.base + vig + progressaoPv + bonusTrilha + bonus;
+  return c.pv.base + vig + progressaoPv + bonusTrilha + bonusSaude + bonus;
 }
 function peMax(){
   const c = classeAtual(); const steps = passosNex(); const pre = state.atributos.pre;
   const somaAtributo = c.escalaAtributoPorNex === false ? 0 : pre;
+  const bonusEsforco = temPoderEscolhido("Esforço Aprimorado") ? 5 : 0;
   const bonus = (state.bonusTransicao && state.bonusTransicao.pe) || 0;
-  return c.pe.base + pre + steps * (c.pe.porNex + somaAtributo) + bonus;
+  return c.pe.base + pre + steps * (c.pe.porNex + somaAtributo) + bonusEsforco + bonus;
 }
 function sanMax(){
   const c = classeAtual(); const steps = passosNex();
-  return c.san.base + steps * c.san.porNex;
+  const bonusSanidade = temPoderEscolhido("Sanidade Aprimorada") ? 5 : 0;
+  return c.san.base + steps * c.san.porNex + bonusSanidade;
 }
 // Limite de PE por turno: para o Sobrevivente (classe mundana), o Estágio NÃO
 // é NEX de verdade, então o limite fica travado em 2 em qualquer estágio.
@@ -166,6 +177,21 @@ function aplicarTreinoDaOrigem(){
   periciasTreinadasDaOrigem().forEach(id => {
     if(state.pericias[id] && state.pericias[id].treino < 5){
       state.pericias[id].treino = 5;
+    }
+  });
+}
+// Ao trocar de origem, desfaz o treino automático que a origem ANTERIOR
+// tinha concedido — mas só se a perícia ainda estiver exatamente em
+// Treinado (5), que é o piso que a origem impõe. Se o jogador já tiver
+// subido essa perícia manualmente pra Veterano/Expert, o valor fica maior
+// que 5 e não é mexido. Sem isso, trocar de origem repetidas vezes durante
+// a criação da ficha ia empilhando o treino de todas as origens já usadas.
+function removerTreinoDaOrigemAnterior(idOrigemAnterior){
+  const o = ORIGENS.find(x => x.id === idOrigemAnterior);
+  if(!o) return;
+  o.pericias.forEach(id => {
+    if(state.pericias[id] && state.pericias[id].treino === 5){
+      state.pericias[id].treino = 0;
     }
   });
 }
@@ -229,17 +255,15 @@ function renderIdentidadeCampos(){
   document.getElementById("fDeslocamento").value = state.deslocamento;
 }
 
-// O pentágono de atributos usa a imagem "img/attributes.png" (arte com os
-// hexágonos, sigilos e os NOMES dos atributos, incluindo os hexágonos de
-// NEX/NVL nos cantos de cima) — o app só sobrepõe os NÚMEROS por cima, cada
-// grupo (◀ número ▶) posicionado (via CSS, em % — ver ".attr-item-*" e
-// ".attr-nex"/".attr-nvl" em style.css) no hexágono certo. Clique/toque no
-// número pra digitar direto, ou use as setinhas — mesmo padrão das barras
-// de recurso.
+// O pentágono de atributos usa a imagem "img/attributes.png" — o app só
+// sobrepõe os NÚMEROS por cima, cada grupo (◀ número ▶) posicionado (via
+// CSS, em % — ver ".attr-item-*" em style.css) no hexágono certo. Clique/
+// toque no número pra digitar direto, ou use as setinhas — mesmo padrão das
+// barras de recurso. NEX/NVL ficam nos círculos separados de novo (a arte
+// tem hexágonos pra eles nos cantos de cima, mas ficaram pequenos demais
+// pra caber o texto "Estágio X" — por enquanto voltou pro círculo à parte).
 function renderAtributos(){
   const el = document.getElementById("attrCluster");
-  const mundana = classeEhMundana();
-  const nexTexto = mundana ? ("Estágio " + estagioAtual()) : (state.nex + "%");
   el.innerHTML = `
     <img src="img/attributes.png" alt="Atributos" class="attr-imagem">
     ${ATRIBUTOS.map(a => `
@@ -249,9 +273,13 @@ function renderAtributos(){
         <button type="button" class="attr-btn attr-btn-inc" data-attr="${a.id}">▶</button>
       </div>
     `).join("")}
-    <span class="attr-nex ${mundana ? "attr-nex-compacto" : ""}">${nexTexto}</span>
-    <span class="attr-nvl">${Math.floor(state.nex / 5)}</span>
   `;
+
+  const mundana = classeEhMundana();
+  const hexNex = document.getElementById("hexNexValor");
+  hexNex.textContent = mundana ? ("Estágio " + estagioAtual()) : (state.nex + "%");
+  hexNex.classList.toggle("hex-badge-val-compacto", mundana);
+  document.getElementById("hexNvlValor").textContent = Math.floor(state.nex / 5);
 
   function commitAtributo(attr, valor){
     state.atributos[attr] = Math.max(0, valor);
@@ -306,8 +334,8 @@ function tierRecurso(chave, atual, max){
 
 const RECURSOS_CONFIG = [
   { chave: "pv", nome: "Vida", statusEl: "pvStatus", iconeMarca: "img/icons/empty-skull-icon.svg" },
-  { chave: "pe", nome: "Esforço", statusEl: null, iconeMarca: null },
   { chave: "san", nome: "Sanidade", statusEl: "sanStatus", iconeMarca: "img/icons/empty-brain-icon.svg" },
+  { chave: "pe", nome: "Esforço", statusEl: null, iconeMarca: null },
 ];
 
 const MAXFN_RECURSO = { pv: pvMax, pe: peMax, san: sanMax };
@@ -500,10 +528,83 @@ function renderRecursos(){
   document.getElementById("cdPericiasQtd").textContent = qtdTreinadas;
 }
 
+// Qualquer poder (de origem, geral, de classe, de trilha, paranormal ou
+// customizado) pode ter um campo opcional "bonus" em data.js, que aparece
+// como um selo destacado no card do poder. Ele aceita duas formas:
+//
+// 1) TEXTO LIVRE — pra qualquer bônus, inclusive os que não são um número
+//    fixo de perícia (ex: metade de Sanidade inicial, RD, PV, PE...):
+//      bonus: "+2 em Diplomacia"
+//      bonus: "Sanidade inicial pela metade"
+//
+// 2) OBJETO — só pra bônus numérico DE PERÍCIA que deve ser somado
+//    automaticamente ao total da perícia na aba Perícias, escalando com o
+//    NEX (ex: "Resistente" — +1 de Fortitude a cada NEX ímpar). Funciona
+//    apenas em poderes de classe/gerais escolhidos e em poderes de trilha
+//    (veja bonusPoderesPorPericia, abaixo) — poder de origem, paranormal e
+//    customizado só mostram o selo, sem somar automaticamente:
+//      bonus: { pericia: "fortitude", formula: "porNexImpar", valor: 1 }
+//    Fórmulas aceitas:
+//      "fixo"         -> soma "valor" direto, uma vez só (não escala com NEX)
+//      "porNex5"      -> soma "valor" pra cada 5% de NEX (1 por estágio)
+//      "porNexImpar"  -> soma "valor" a cada NEX ímpar alcançado (5%, 15%,
+//                        25%, 35%... — os múltiplos de 5 com final ímpar)
+function contarNexImpar(nex){
+  let count = 0;
+  for(let n = 5; n <= nex; n += 10) count++;
+  return count;
+}
+function valorBonusPoder(bonus){
+  if(!bonus) return 0;
+  if(bonus.formula === "fixo") return bonus.valor;
+  if(bonus.formula === "porNex5") return Math.floor(state.nex / 5) * bonus.valor;
+  if(bonus.formula === "porNexImpar") return contarNexImpar(state.nex) * bonus.valor;
+  return 0;
+}
+// Transforma o campo "bonus" (texto livre OU objeto {pericia,formula,valor})
+// no texto exibido no selo do card. Usado por bonusBadge, abaixo.
+function bonusLabel(bonus){
+  if(!bonus) return "";
+  if(typeof bonus === "string") return bonus;
+  if(bonus.pericia){
+    const per = PERICIAS.find(p => p.id === bonus.pericia);
+    const nomePer = per ? per.nome : bonus.pericia;
+    if(bonus.formula === "fixo") return `+${bonus.valor} em ${nomePer}`;
+    return `+${valorBonusPoder(bonus)} em ${nomePer} (escala com NEX)`;
+  }
+  return "";
+}
+// HTML do selo de bônus pra colar dentro de um card de poder. Retorna ""
+// se o poder não tiver campo "bonus".
+function bonusBadge(bonus){
+  const label = bonusLabel(bonus);
+  return label ? `<div class="card-bonus">✦ ${label}</div>` : "";
+}
+// Varre poderes escolhidos (classe/geral) + habilidades de trilha já
+// desbloqueadas, somando os bônus de cada perícia. Retorna um objeto tipo
+// { fortitude: 3, reflexos: 1 }.
+function bonusPoderesPorPericia(){
+  const soma = {};
+  function considerar(fonte){
+    if(!fonte || !fonte.bonus || !fonte.bonus.pericia) return;
+    const v = valorBonusPoder(fonte.bonus);
+    if(v) soma[fonte.bonus.pericia] = (soma[fonte.bonus.pericia] || 0) + v;
+  }
+  const o = origemAtual();
+  if(o) considerar(o.poder);
+  state.poderesEscolhidos.forEach(considerar);
+  state.poderesParanormais.forEach(considerar);
+  state.poderesCustomizados.forEach(considerar);
+  const t = trilhaAtual();
+  if(t) t.poderes.filter(p => p.nex <= state.nex).forEach(considerar);
+  return soma;
+}
+
 function renderPericias(){
   const busca = (document.getElementById("pericBusca").value || "").toLowerCase();
   const tbody = document.getElementById("pericTableBody");
   const origemTreinadas = periciasTreinadasDaOrigem();
+  const bonusPoderes = bonusPoderesPorPericia();
 
   tbody.innerHTML = PERICIAS
     .filter(p => p.nome.toLowerCase().includes(busca))
@@ -511,33 +612,64 @@ function renderPericias(){
       const st = state.pericias[p.id];
       const atrVal = state.atributos[p.atributo];
       const dados = Math.max(atrVal, 1);
-      const total = st.treino + st.extra;
+      const bonusPoder = bonusPoderes[p.id] || 0;
+      const total = st.treino + st.extra + bonusPoder;
       const viaOrigem = origemTreinadas.includes(p.id);
+      const treinoAtual = TREINOS.find(t => t.valor === st.treino) || TREINOS[0];
       return `
-        <tr data-pericia="${p.id}">
-          <td class="p-nome">${p.nome}${viaOrigem ? ' <span class="tag accent">origem</span>' : ''}${p.somenteTreinado ? ' <span class="tag ember">só treinado</span>' : ''}</td>
-          <td>${ATRIBUTOS.find(a=>a.id===p.atributo).abrev} (${dados}d20)</td>
-          <td>
-            <select class="pericia-treino">
-              ${TREINOS.map(t => `<option value="${t.valor}" ${st.treino===t.valor ? 'selected':''}>${t.nome}</option>`).join("")}
-            </select>
-          </td>
-          <td><input type="number" class="pericia-extra" value="${st.extra}"></td>
-          <td class="p-total">${dados}d20 + ${total}</td>
-        </tr>
+        <div class="pericia-row" data-pericia="${p.id}">
+          <div class="pr-nome">
+            <span class="pr-icone" aria-hidden="true"></span>
+            <div class="pr-nome-col">
+              <div class="pr-nome-txt">${p.nome}${viaOrigem ? ' <span class="tag accent">origem</span>' : ''}${p.somenteTreinado ? ' <span class="tag ember">só treinado</span>' : ''}</div>
+              <div class="pericia-dados" title="${dados}d20">
+                <span class="pericia-dados-txt">${dados}d20</span>
+                <div class="dado-pips">${'<span class="dado-pip"></span>'.repeat(dados)}</div>
+              </div>
+            </div>
+          </div>
+          <div class="pr-treino">
+            <div class="treino-dropdown">
+              <button type="button" class="treino-toggle" title="${treinoAtual.nome}">
+                <img src="${treinoAtual.icone}" alt="${treinoAtual.nome}" class="treino-icon">
+              </button>
+              <div class="treino-menu" role="listbox">
+                ${TREINOS.map(t => `
+                  <button type="button" class="treino-opcao ${st.treino===t.valor ? 'selecionada':''}" data-valor="${t.valor}" role="option" title="${t.nome}">
+                    <img src="${t.icone}" alt="${t.nome}" class="treino-icon">
+                    <span>${t.nome}</span>
+                  </button>
+                `).join("")}
+              </div>
+            </div>
+          </div>
+          <div class="pr-atrib">${ATRIBUTOS.find(a=>a.id===p.atributo).abrev}</div>
+          <div class="pr-extra"><input type="number" class="pericia-extra" value="${st.extra}"></div>
+          <div class="pr-total">${total}${bonusPoder ? `<small class="p-bonus-poder" title="Bônus automático de poder/habilidade">+${bonusPoder} poder</small>` : ""}</div>
+        </div>
       `;
     }).join("");
 
-  tbody.querySelectorAll(".pericia-treino").forEach(sel => {
-    sel.addEventListener("change", (e) => {
-      const id = e.target.closest("tr").dataset.pericia;
-      state.pericias[id].treino = parseInt(e.target.value, 10);
+  tbody.querySelectorAll(".treino-toggle").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const dropdown = btn.closest(".treino-dropdown");
+      const jaAberto = dropdown.classList.contains("open");
+      tbody.querySelectorAll(".treino-dropdown.open").forEach(d => d.classList.remove("open"));
+      if(!jaAberto) dropdown.classList.add("open");
+    });
+  });
+  tbody.querySelectorAll(".treino-opcao").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = e.target.closest(".pericia-row").dataset.pericia;
+      state.pericias[id].treino = parseInt(btn.dataset.valor, 10);
       renderPericias(); renderRecursos();
     });
   });
   tbody.querySelectorAll(".pericia-extra").forEach(inp => {
     inp.addEventListener("input", (e) => {
-      const id = e.target.closest("tr").dataset.pericia;
+      const id = e.target.closest(".pericia-row").dataset.pericia;
       state.pericias[id].extra = parseInt(e.target.value, 10) || 0;
       renderPericias();
     });
@@ -605,6 +737,7 @@ function renderHabilidades(){
   document.getElementById("origemPoderCard").innerHTML = `
     <div class="card">
       <div class="card-head"><span class="card-title">${o.poder.nome}</span><span class="card-meta">${o.nome}</span></div>
+      ${bonusBadge(o.poder.bonus)}
       <div class="card-desc">${o.poder.descricao}</div>
     </div>
   `;
@@ -633,6 +766,7 @@ function renderHabilidades(){
     trilhaHabEl.innerHTML = desbloqueadas.length ? desbloqueadas.map(p => `
       <div class="card">
         <div class="card-head"><span class="card-title">${p.nome}</span><span class="card-meta">Trilha: ${t.nome}</span></div>
+        ${bonusBadge(p.bonus)}
         <div class="card-desc">${p.descricao}</div>
       </div>
     `).join("") : `<div class="empty-note">Nenhuma habilidade de ${t.nome} desbloqueada ainda.</div>`;
@@ -651,6 +785,7 @@ function renderHabilidades(){
         </div>
         <div class="card-meta">${p.origemTipo}</div>
         ${p.preRequisito ? `<div class="card-meta card-prereq">Pré-requisito: ${p.preRequisito}</div>` : ""}
+        ${bonusBadge(p.bonus)}
         <div class="card-desc">${p.descricao}</div>
       </div>
     `).join("");
@@ -658,22 +793,28 @@ function renderHabilidades(){
       btn.addEventListener("click", (e) => {
         const i = parseInt(e.target.closest(".card").dataset.idx, 10);
         state.poderesEscolhidos.splice(i,1);
-        renderHabilidades();
+        renderHabilidades(); renderRecursos(); renderPericias();
       });
     });
   }
 
-  // select de poderes disponíveis — só os poderes de CLASSE (coisas que o
-  // jogador escolhe, ex: Golpe Pesado, Incansável, Transcender). Habilidades
-  // de trilha NÃO entram aqui: elas são fixas e aparecem sozinhas acima.
+  // select de poderes disponíveis — poderes de CLASSE + poderes GERAIS
+  // (coisas que o jogador escolhe, ex: Golpe Pesado, Incansável,
+  // Transcender, e os Gerais como Sorte, Diplomata etc, que qualquer classe
+  // pode pegar). Habilidades de trilha NÃO entram aqui: elas são fixas e
+  // aparecem sozinhas acima.
   const sel = document.getElementById("selectPoderDisponivel");
   const jaEscolhidos = new Set(state.poderesEscolhidos.map(p => p.nome));
   const opcoesClasse = c.poderes
     .filter(p => !jaEscolhidos.has(p.nome))
-    .map(p => ({ label: p.nome, nome: p.nome, descricao: p.descricao, preRequisito: p.preRequisito, origemTipo: `Poder de ${c.nome}` }));
-  sel.innerHTML = opcoesClasse.map((p, i) => `<option value="${i}">${p.label}</option>`).join("") ||
+    .map(p => ({ label: p.nome, nome: p.nome, descricao: p.descricao, preRequisito: p.preRequisito, origemTipo: `Poder de ${c.nome}`, bonus: p.bonus || null }));
+  const opcoesGerais = PODERES_GERAIS
+    .filter(p => !jaEscolhidos.has(p.nome))
+    .map(p => ({ label: `${p.nome} (Geral)`, nome: p.nome, descricao: p.descricao, preRequisito: p.preRequisito, origemTipo: "Poder Geral", bonus: p.bonus || null }));
+  const opcoesPoder = [...opcoesClasse, ...opcoesGerais];
+  sel.innerHTML = opcoesPoder.map((p, i) => `<option value="${i}">${p.label}</option>`).join("") ||
     `<option value="">— nenhum disponível —</option>`;
-  sel._opcoes = opcoesClasse;
+  sel._opcoes = opcoesPoder;
 
   // poderes paranormais
   const ppEl = document.getElementById("poderesParanormaisList");
@@ -685,6 +826,7 @@ function renderHabilidades(){
         <div class="card-head"><span class="card-title">${p.nome}</span><button class="icon-btn danger pp-remove">✕</button></div>
         ${elementoBanner(p.elemento)}
         ${p.custoSAN ? `<div class="card-meta">Custo: ${p.custoSAN} SAN</div>` : ""}
+        ${bonusBadge(p.bonus)}
         <div class="card-desc">${p.descricao}</div>
       </div>
     `).join("");
@@ -720,11 +862,15 @@ function renderPoderesCustomizados(){
           <input type="text" class="pc-nome" data-idx="${i}" value="${p.nome}" placeholder="Nome do poder">
           <button class="icon-btn danger pc-remove" data-idx="${i}">✕</button>
         </div>
+        <input type="text" class="pc-bonus" data-idx="${i}" value="${p.bonus || ""}" placeholder="Bônus (opcional, ex: +2 em Diplomacia)">
         <textarea class="pc-descricao" data-idx="${i}" placeholder="Descrição do poder...">${p.descricao}</textarea>
       </div>
     `).join("");
     pcEl.querySelectorAll(".pc-nome").forEach(inp => {
       inp.addEventListener("input", e => { state.poderesCustomizados[e.target.dataset.idx].nome = e.target.value; });
+    });
+    pcEl.querySelectorAll(".pc-bonus").forEach(inp => {
+      inp.addEventListener("input", e => { state.poderesCustomizados[e.target.dataset.idx].bonus = e.target.value; });
     });
     pcEl.querySelectorAll(".pc-descricao").forEach(ta => {
       ta.addEventListener("input", e => { state.poderesCustomizados[e.target.dataset.idx].descricao = e.target.value; });
@@ -741,26 +887,40 @@ function renderPoderesCustomizados(){
 // Corpo de um card de ritual (banner do elemento, campos empilhados como no
 // livro, e imagem opcional). Compartilhado entre a aba Rituais da ficha e o
 // Compêndio, pra manter os dois com a mesma cara.
-// Campos aceitos no objeto do ritual (em data.js): execucao, alcance, alvo
-// (opcional — nem todo ritual antigo tem esse campo ainda), duracao,
-// resistencia, imagem (opcional — URL ou caminho de arquivo, ex:
-// "img/rituais/toque-sombrio.png"). Sem "Custo" aqui de propósito, pra bater
-// com a página de descrição do livro (o custo em PE não aparece nela).
+// Campos aceitos no objeto do ritual (em data.js):
+//   execucao, alcance, duracao, resistencia — texto livre.
+//   alvo OU area — use um ou outro (a maioria dos rituais tem só um dos dois).
+//   elementoSecundario — pra rituais que podem ser de mais de um elemento
+//     (ex: você escolhe entre Sangue ou Energia ao aprender). Mostra os dois
+//     nomes juntos na faixa colorida, tipo "SANGUE / ENERGIA 4".
+//   discente / verdadeiro — as versões aprimoradas do ritual, cada uma com
+//     { custoPE, descricao }. "descricao" é só o efeito extra (o "+X PE" e
+//     o rótulo já são montados automaticamente); inclua frases tipo
+//     "Requer 3º círculo" ou "Requer afinidade" no fim da descrição, igual
+//     ao livro.
+//   imagem (opcional — URL ou caminho de arquivo, ex: "img/rituais/toque-sombrio.png").
+// Sem "Custo" (PE base) aqui de propósito, pra bater com a página de
+// descrição do livro (o custo em PE não aparece nela, só nas versões
+// Discente/Verdadeiro, que SÃO custo adicional).
 function ritualCardHtml(r){
   const campos = [
     ["Execução", r.execucao],
     ["Alcance", r.alcance],
     ["Alvo", r.alvo],
+    ["Área", r.area],
     ["Duração", r.duracao],
     ["Resistência", r.resistencia],
   ].filter(([, valor]) => valor);
+  const nomeExibido = r.elementoSecundario ? `${r.elemento} / ${r.elementoSecundario}` : r.elemento;
   return `
     ${r.imagem ? `<img src="${r.imagem}" alt="${r.nome}" class="ritual-imagem" onerror="this.style.display='none'">` : ""}
-    ${elementoBanner(r.elemento, r.circulo, " ")}
+    ${elementoBanner(r.elemento, r.circulo, " ", nomeExibido)}
     <div class="ritual-campos-lista">
       ${campos.map(([label, valor]) => `<div><strong>${label}:</strong> ${valor}</div>`).join("")}
     </div>
     <div class="card-desc">${r.descricao}</div>
+    ${r.discente ? `<div class="ritual-upgrade"><strong>Discente (+${r.discente.custoPE} PE):</strong> ${r.discente.descricao}</div>` : ""}
+    ${r.verdadeiro ? `<div class="ritual-upgrade"><strong>Verdadeiro (+${r.verdadeiro.custoPE} PE):</strong> ${r.verdadeiro.descricao}</div>` : ""}
   `;
 }
 
@@ -902,13 +1062,20 @@ function renderCondicoes(){
 /* ================================================================ EVENTOS */
 
 function bindEventosEstaticos(){
+  // Fecha qualquer dropdown de treino de perícia aberto ao clicar fora dele.
+  document.addEventListener("click", () => {
+    document.querySelectorAll(".treino-dropdown.open").forEach(d => d.classList.remove("open"));
+  });
+
   on("fNome", "input", e => state.nome = e.target.value);
   on("fJogador", "input", e => state.jogador = e.target.value);
   on("fNotas", "input", e => state.notas = e.target.value);
   on("fDeslocamento", "input", e => state.deslocamento = e.target.value);
 
   on("fOrigem", "change", e => {
+    const idAntiga = state.origemId;
     state.origemId = e.target.value;
+    removerTreinoDaOrigemAnterior(idAntiga);
     aplicarTreinoDaOrigem();
     renderPericias(); renderHabilidades();
   });
@@ -1008,14 +1175,14 @@ function bindEventosEstaticos(){
     state.nex = parseInt(e.target.value, 10);
     const mundana = classeEhMundana();
     document.getElementById("fNexValue").textContent = mundana ? ("Estágio " + estagioAtual() + " de 5") : (state.nex + "%");
-    renderAtributos(); renderRecursos(); renderHabilidades();
+    renderAtributos(); renderRecursos(); renderHabilidades(); renderPericias();
   });
   on("fNex", "change", async () => {
     await validarMudancaDeEstagio();
     const mundana = classeEhMundana();
     document.getElementById("fNex").value = state.nex;
     document.getElementById("fNexValue").textContent = mundana ? ("Estágio " + estagioAtual() + " de 5") : (state.nex + "%");
-    renderSelects(); renderIdentidadeCampos(); renderAtributos(); renderRecursos(); renderHabilidades();
+    renderSelects(); renderIdentidadeCampos(); renderAtributos(); renderRecursos(); renderHabilidades(); renderPericias();
   });
 
   on("fDefesaOutros", "input", e => {
@@ -1038,8 +1205,9 @@ function bindEventosEstaticos(){
     state.poderesEscolhidos.push({
       nome: escolhido.nome, descricao: escolhido.descricao,
       preRequisito: escolhido.preRequisito, origemTipo: escolhido.origemTipo,
+      bonus: escolhido.bonus || null,
     });
-    renderHabilidades();
+    renderHabilidades(); renderRecursos(); renderPericias();
   });
 
   on("btnAddPoderParanormal", "click", () => {
@@ -1052,7 +1220,7 @@ function bindEventosEstaticos(){
   });
 
   on("btnAddPoderCustomizado", "click", () => {
-    state.poderesCustomizados.push({ nome: "", descricao: "" });
+    state.poderesCustomizados.push({ nome: "", descricao: "", bonus: "" });
     renderPoderesCustomizados();
   });
 
@@ -1194,10 +1362,11 @@ function bindCompendio(){
 function slugElemento(nome){
   return (nome || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 }
-function elementoBanner(nome, extra, separador){
+function elementoBanner(nome, extra, separador, textoExibido){
   if(!nome) return "";
   separador = separador === undefined ? " · " : separador;
-  return `<div class="elemento-banner elemento-${slugElemento(nome)}">${nome.toUpperCase()}${extra ? separador + extra : ""}</div>`;
+  const texto = (textoExibido || nome).toUpperCase();
+  return `<div class="elemento-banner elemento-${slugElemento(nome)}">${texto}${extra ? separador + extra : ""}</div>`;
 }
 const ELEMENTOS_FILTRO = ["Sangue", "Morte", "Energia", "Conhecimento", "Medo"];
 let compendioElementoFiltro = "todos";
@@ -1249,6 +1418,7 @@ function renderCompendio(){
         }).join("")}</div>
         <div class="card" style="margin-top:8px;background:var(--panel-alt);">
           <div class="card-head"><span class="card-title" style="font-size:.85rem;">${o.poder.nome}</span></div>
+          ${bonusBadge(o.poder.bonus)}
           <div class="card-desc">${o.poder.descricao}</div>
         </div>
       </div>
@@ -1256,7 +1426,21 @@ function renderCompendio(){
   }
 
   else if(aba === "classes"){
-    body.innerHTML = Object.values(CLASSES).map(c => {
+    const geraisFiltrados = PODERES_GERAIS.filter(p => bate(p.nome));
+    const cardGerais = (busca && geraisFiltrados.length === 0) ? "" : `
+      <div class="card">
+        <div class="card-head"><span class="card-title">Poderes Gerais</span><span class="card-meta">Qualquer classe</span></div>
+        ${geraisFiltrados.map(p => `
+          <div class="card" style="background:var(--panel-alt);">
+            <div class="card-head"><span class="card-title" style="font-size:.85rem;">${p.nome}</span></div>
+            ${p.preRequisito ? `<div class="card-meta card-prereq">Pré-requisito: ${p.preRequisito}</div>` : ""}
+            ${bonusBadge(p.bonus)}
+            <div class="card-desc">${p.descricao}</div>
+          </div>
+        `).join("") || `<div class="empty-note">Nenhum poder geral encontrado.</div>`}
+      </div>
+    `;
+    body.innerHTML = cardGerais + Object.values(CLASSES).map(c => {
       const poderesClasse = c.poderes.filter(p => bate(p.nome) || bate(c.nome));
       const trilhas = c.trilhas.filter(t => bate(t.nome) || bate(c.nome) || t.poderes.some(p => bate(p.nome)));
       if(busca && !bate(c.nome) && poderesClasse.length === 0 && trilhas.length === 0) return "";
@@ -1268,6 +1452,7 @@ function renderCompendio(){
             <div class="card" style="background:var(--panel-alt);">
               <div class="card-head"><span class="card-title" style="font-size:.85rem;">${p.nome}</span></div>
               ${p.preRequisito ? `<div class="card-meta card-prereq">Pré-requisito: ${p.preRequisito}</div>` : ""}
+              ${bonusBadge(p.bonus)}
               <div class="card-desc">${p.descricao}</div>
             </div>
           `).join("") || `<div class="empty-note">Nenhum poder de classe encontrado.</div>`}
@@ -1280,6 +1465,7 @@ function renderCompendio(){
                 <div style="margin-top:8px;">
                   <strong style="font-size:.78rem;">${p.nome}</strong>
                   <span class="tag">${c.mundano ? ("Estágio " + (Math.floor(p.nex / 5) + 1)) : ("NEX " + p.nex + "%")}</span>
+                  ${bonusBadge(p.bonus)}
                   <div class="card-desc" style="font-size:.8rem;">${p.descricao}</div>
                 </div>
               `).join("")}
@@ -1296,6 +1482,7 @@ function renderCompendio(){
       <div class="card">
         <div class="card-head"><span class="card-title">${p.nome}</span>${p.custoSAN ? `<span class="card-meta">${p.custoSAN} SAN</span>` : ""}</div>
         ${elementoBanner(p.elemento)}
+        ${bonusBadge(p.bonus)}
         <div class="card-desc">${p.descricao}</div>
       </div>
     `).join("") || `<div class="empty-note">Nenhum poder paranormal encontrado.</div>`);

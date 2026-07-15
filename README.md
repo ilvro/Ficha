@@ -100,11 +100,50 @@ No array `ORIGENS`:
   nome: "Nome da Origem",
   descricao: "Frase curta.",
   pericias: ["intuicao", "vontade"],
-  poder: { nome: "Nome do Poder", descricao: "O que faz." },
+  poder: {
+    nome: "Nome do Poder",
+    bonus: "+2 em Diplomacia", // opcional, veja a seção "Campo bônus" abaixo
+    descricao: "O que faz.",
+  },
 },
 ```
 
 Os ids de perícia disponíveis estão listados no bloco `PERICIAS` (item 2).
+
+### Campo `bonus` (selo de bônus nos cards de poder)
+Qualquer poder — de origem, geral, de classe, de trilha, paranormal ou
+customizado (criado direto na ficha) — pode receber um campo opcional
+`bonus`, que aparece como um selo destacado (✦) no card do poder, tanto na
+aba Habilidades quanto no Compêndio. Ele aceita duas formas:
+
+**1) Texto livre** — pra qualquer bônus, inclusive os que não são um número
+fixo de perícia (metade de Sanidade, RD, PV, PE, dano...). É só descrever:
+
+```js
+poder: {
+  nome: "Traços do Outro Lado",
+  bonus: "Poder paranormal à escolha; Sanidade inicial pela metade",
+  descricao: "Você possui um poder paranormal à sua escolha. Porém, ...",
+},
+```
+
+Esse é o caso, por exemplo, da origem **Cultista Arrependido**.
+
+**2) Objeto** — só pra bônus numérico *de perícia* que deve ser somado
+automaticamente ao total da perícia na aba Perícias, escalando com o NEX
+(funciona em poder de origem, de classe/geral escolhido, e de trilha):
+
+```js
+bonus: { pericia: "diplomacia", formula: "fixo", valor: 2 }
+```
+
+Fórmulas aceitas:
+- `"fixo"` → soma `valor` direto, uma vez só (não escala com NEX)
+- `"porNex5"` → soma `valor` a cada 5% de NEX (1 por estágio)
+- `"porNexImpar"` → soma `valor` a cada NEX ímpar alcançado (5%, 15%, 25%...)
+
+Se não tiver certeza de qual forma usar, use texto livre — é sempre seguro
+e cobre qualquer poder, mesmo os que não são um número de perícia.
 
 ### Adicionar um poder de classe ou de trilha
 Dentro de `CLASSES.combatente` (ou `especialista`/`ocultista`):
@@ -112,6 +151,8 @@ Dentro de `CLASSES.combatente` (ou `especialista`/`ocultista`):
 - Poder geral de classe → array `poderes`
 - Poder de uma trilha específica → dentro de `trilhas`, no array `poderes`
   daquela trilha (cada um tem um `nex` de quando fica disponível)
+
+Ambos aceitam o campo opcional `bonus` (veja a seção acima).
 
 ### Mudar a progressão de NEX (sua homebrew)
 Edite `CLASSES.<classe>.tabelaNex`. Cada linha representa o que a classe
@@ -171,6 +212,9 @@ programação — não tem como quebrar o app editando esses valores.
 - Limite de PE por turno
 - Quantidade de dados rolados por perícia (baseado no atributo)
 - Quais habilidades de NEX já estão desbloqueadas (comparando com o NEX atual)
+- Bônus de perícia vindos de poderes com o campo `bonus` no formato objeto
+  (origem, de classe/geral escolhido ou de trilha), somando ao total da
+  perícia na aba Perícias e escalando com o NEX quando aplicável
 
 ## Privacidade
 

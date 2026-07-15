@@ -80,7 +80,15 @@
   <section class="panel">
     <h2>Atributos</h2>
     <div class="attr-wrap">
+      <div class="hex-badge hex-badge-nex">
+        <span class="hex-badge-val" id="hexNexValor">0%</span>
+        <span class="hex-badge-label">NEX</span>
+      </div>
       <div class="attr-cluster" id="attrCluster"></div>
+      <div class="hex-badge hex-badge-nvl">
+        <span class="hex-badge-val" id="hexNvlValor">0</span>
+        <span class="hex-badge-label">NVL</span>
+      </div>
     </div>
   </section>
 
@@ -104,7 +112,8 @@
       <div class="cd-item"><div class="cd-label">Deslocamento</div>
         <div class="cd-val"><input type="text" id="fDeslocamento" value="9m (6q)" style="width:90px;text-align:center;font-family:var(--font-mono);"></div>
       </div>
-      <div class="cd-item"><div class="cd-label">Bônus PE / Turno</div><div class="cd-val" id="cdPePorTurno">2</div></div>
+      <div class="cd-item"><div class="cd-label">PE / Turno</div><div class="cd-val" id="cdPePorTurno">2</div></div>
+
       <div class="cd-item"><div class="cd-label">Perícias Treinadas</div><div class="cd-val" id="cdPericiasQtd">0</div></div>
     </div>
   </section>
@@ -126,15 +135,15 @@
       <div class="pericias-toolbar">
         <input type="text" id="pericBusca" placeholder="Buscar perícia...">
       </div>
+      <div class="pericias-list-head">
+        <span class="plh-nome">Perícia</span>
+        <span>Treino</span>
+        <span>Atrib.</span>
+        <span>Extra</span>
+        <span>Total</span>
+      </div>
       <div class="tabela-scroll">
-        <table class="pericias">
-          <thead>
-            <tr>
-              <th>Perícia</th><th>Atributo</th><th>Treino</th><th>Outros</th><th>Total</th>
-            </tr>
-          </thead>
-          <tbody id="pericTableBody"></tbody>
-        </table>
+        <div class="pericias-list-body" id="pericTableBody"></div>
       </div>
     </div>
 
