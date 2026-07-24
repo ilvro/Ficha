@@ -17,9 +17,13 @@ function estadoPadrao(){
   PERICIAS.forEach(p => pericias[p.id] = { treino: 0, extra: 0 });
   return {
     nome: "", jogador: "",
+    foto: "", // dataURL (base64), já redimensionada — fica só no arquivo salvo, sem servidor
     origemId: ORIGENS[0].id,
     classeId: "sobrevivente",
     trilhaId: "",
+    trilhaSecundariaId: "", // trilha extra, escolhida pelo jogador ao pegar o poder geral "Versatilidade" (homebrew)
+    trilhaTerciariaId: "", // trilha extra #2, escolhida ao ter o poder paranormal "Versatilidade Amplificada"
+    trilhaTierAtribuicoes: {}, // { "25": "secundaria" } — qual trilha dá o poder em cada NEX de progressão; tier ausente = principal
     nex: 0,
     atributos: { for: 1, agi: 1, vig: 1, int: 1, pre: 1 },
     pv: { atual: null, temp: 0, marcas: 0 },
@@ -27,6 +31,7 @@ function estadoPadrao(){
     san: { atual: null, temp: 0, marcas: 0 },
     deslocamento: "9m (6q)",
     defesaOutros: 0,
+    limitePericiasTreinadas: null, // opcional, definido pelo jogador/mestre — só gera aviso, não bloqueia nada
     pericias,
     ataques: [],
     poderesEscolhidos: [],
@@ -84,6 +89,78 @@ function trilhaAtual(){
   return c.trilhas.find(t => t.id === state.trilhaId) || null;
 }
 function origemAtual(){ return ORIGENS.find(o => o.id === state.origemId); }
+
+// ---- Versatilidade (homebrew: multitrilha) -----------------------------
+// Escolher o poder geral "Versatilidade" (uma única vez) destrava a escolha
+// de uma segunda trilha (o jogador escolhe qual, entre as trilhas da mesma
+// classe que não são a principal). A partir daí, em cada NEX de progressão
+// de trilha o jogador escolhe livremente se aquele slot vai pra trilha
+// principal, secundária ou terciária — armazenado em
+// state.trilhaTierAtribuicoes, ex: { "40": "secundaria" }. Slot sem entrada
+// aí = trilha principal (comportamento normal, sem Versatilidade).
+//
+// IMPORTANTE: cada trilha avança na SUA PRÓPRIA sequência de poderes (1º,
+// 2º, 3º...), na ordem em que ela foi escolhida nos slots — não no valor de
+// NEX do slot. Ex: se a 1ª vez que a trilha secundária aparece é no slot de
+// NEX 65%, ela recebe o 1º poder dela (o de NEX mais baixo na lista dela),
+// não o poder que originalmente tem nex:65. É assim que "avançar um nível
+// da trilha escolhida" funciona na regra.
+const TIERS_TRILHA = [10, 25, 40, 65, 99]; // slots de progressão de trilha
+function temVersatilidade(){
+  return state.poderesEscolhidos.some(p => p.nome === "Versatilidade");
+}
+// Versatilidade Amplificada (poder paranormal) destrava uma TERCEIRA trilha
+// — só faz sentido depois que a secundária já foi escolhida.
+function temVersatilidadeAmplificada(){
+  return state.poderesParanormais.some(p => p.nome === "Versatilidade Amplificada");
+}
+function trilhasDisponiveisParaSecundaria(){
+  const c = classeAtual();
+  if(!c || !c.trilhas) return [];
+  return c.trilhas.filter(t => t.id !== state.trilhaId);
+}
+function trilhasDisponiveisParaTerciaria(){
+  const c = classeAtual();
+  if(!c || !c.trilhas) return [];
+  return c.trilhas.filter(t => t.id !== state.trilhaId && t.id !== state.trilhaSecundariaId);
+}
+function trilhaSecundariaAtual(){
+  const c = classeAtual();
+  if(!c || !c.trilhas || !state.trilhaSecundariaId) return null;
+  return c.trilhas.find(t => t.id === state.trilhaSecundariaId) || null;
+}
+function trilhaTerciariaAtual(){
+  const c = classeAtual();
+  if(!c || !c.trilhas || !state.trilhaTerciariaId || !temVersatilidadeAmplificada()) return null;
+  return c.trilhas.find(t => t.id === state.trilhaTerciariaId) || null;
+}
+// Retorna "principal", "secundaria" ou "terciaria" pra um slot — o que o
+// jogador escolheu (ou "principal" por padrão, se nunca escolheu nada).
+function trilhaAtribuidaNoTier(tier){
+  return state.trilhaTierAtribuicoes[tier] || "principal";
+}
+// Processa TODOS os slots de progressão já alcançados, em ordem, e resolve
+// pra cada um: qual trilha foi escolhida e qual poder DELA corresponde (o
+// 1º, 2º, 3º... poder dessa trilha específica, contando só as vezes que
+// ela apareceu até agora — não o valor de NEX do slot). Retorna uma lista
+// de { tier, alvo, trilhaObj, poder }, na mesma ordem de TIERS_TRILHA.
+function progressaoDeTrilhas(){
+  const contadores = { principal: 0, secundaria: 0, terciaria: 0 };
+  const trilhaPorAlvo = {
+    principal: trilhaAtual(),
+    secundaria: trilhaSecundariaAtual(),
+    terciaria: trilhaTerciariaAtual(),
+  };
+  return TIERS_TRILHA.filter(tier => tier <= state.nex).map(tier => {
+    const alvo = trilhaAtribuidaNoTier(tier);
+    const trilhaObj = trilhaPorAlvo[alvo] || trilhaPorAlvo.principal;
+    if(!trilhaObj) return { tier, alvo, trilhaObj: null, poder: null };
+    const poderesOrdenados = [...trilhaObj.poderes].sort((a, b) => a.nex - b.nex);
+    const idx = contadores[alvo] || 0;
+    contadores[alvo] = idx + 1;
+    return { tier, alvo, trilhaObj, poder: poderesOrdenados[idx] || null };
+  });
+}
 
 // Regra do Sobrevivente: a trilha só é escolhida (e obrigatória) a partir do
 // Estágio 2. Se o personagem voltar para o Estágio 1 (nex < 5), ele perde a
@@ -204,10 +281,10 @@ function renderTudo(){
   renderAtributos();
   renderRecursos();
   renderPericias();
+  renderInventario();
   renderAtaques();
   renderHabilidades();
   renderRituais();
-  renderInventario();
   renderCondicoes();
   document.getElementById("fNotas").value = state.notas;
   document.documentElement.dataset.theme = state.theme;
@@ -238,6 +315,20 @@ function renderIdentidadeCampos(){
   document.getElementById("fNome").value = state.nome;
   document.getElementById("fJogador").value = state.jogador;
 
+  const fotoPreview = document.getElementById("fotoAgentePreview");
+  const fotoPlaceholder = document.getElementById("fotoAgentePlaceholder");
+  const btnRemoverFoto = document.getElementById("btnRemoverFoto");
+  if(state.foto){
+    fotoPreview.src = state.foto;
+    fotoPreview.style.display = "";
+    fotoPlaceholder.style.display = "none";
+    btnRemoverFoto.style.display = "";
+  } else {
+    fotoPreview.style.display = "none";
+    fotoPlaceholder.style.display = "";
+    btnRemoverFoto.style.display = "none";
+  }
+
   const c = classeAtual();
   const mundana = classeEhMundana(c);
   const fNex = document.getElementById("fNex");
@@ -253,6 +344,18 @@ function renderIdentidadeCampos(){
   document.getElementById("fNexValue").textContent = mundana ? ("Estágio " + estagioAtual() + " de 5") : (state.nex + "%");
 
   document.getElementById("fDeslocamento").value = state.deslocamento;
+
+  const tSec = trilhaSecundariaAtual();
+  const infoSec = document.getElementById("fTrilhaSecundariaInfo");
+  if(tSec){
+    infoSec.textContent = `+ Versatilidade: trilha secundária ${tSec.nome}`;
+    infoSec.style.display = "";
+  } else if(temVersatilidade()){
+    infoSec.textContent = `+ Versatilidade: escolha sua trilha secundária em Habilidades`;
+    infoSec.style.display = "";
+  } else {
+    infoSec.style.display = "none";
+  }
 }
 
 // O pentágono de atributos usa a imagem "img/attributes.png" — o app só
@@ -283,7 +386,7 @@ function renderAtributos(){
 
   function commitAtributo(attr, valor){
     state.atributos[attr] = Math.max(0, valor);
-    renderRecursos(); renderPericias();
+    renderRecursos(); renderPericias(); atualizarPesoInventario();
   }
   el.querySelectorAll(".attr-valor").forEach(inp => {
     inp.addEventListener("input", e => {
@@ -526,6 +629,10 @@ function renderRecursos(){
 
   const qtdTreinadas = Object.values(state.pericias).filter(p => p.treino > 0).length;
   document.getElementById("cdPericiasQtd").textContent = qtdTreinadas;
+  const limiteInput = document.getElementById("fLimitePericias");
+  limiteInput.value = state.limitePericiasTreinadas ?? "";
+  document.getElementById("periciasTreinadasAviso").style.display =
+    (state.limitePericiasTreinadas && qtdTreinadas > state.limitePericiasTreinadas) ? "" : "none";
 }
 
 // Qualquer poder (de origem, geral, de classe, de trilha, paranormal ou
@@ -596,7 +703,15 @@ function bonusPoderesPorPericia(){
   state.poderesParanormais.forEach(considerar);
   state.poderesCustomizados.forEach(considerar);
   const t = trilhaAtual();
-  if(t) t.poderes.filter(p => p.nex <= state.nex).forEach(considerar);
+  const tSec = trilhaSecundariaAtual();
+  const mundana = classeEhMundana(classeAtual());
+  if(t && (mundana || !temVersatilidade())){
+    t.poderes.filter(p => p.nex <= state.nex).forEach(considerar);
+  } else if(t && tSec){
+    progressaoDeTrilhas().forEach(item => considerar(item.poder));
+  } else if(t){
+    t.poderes.filter(p => p.nex <= state.nex).forEach(considerar);
+  }
   return soma;
 }
 
@@ -676,6 +791,40 @@ function renderPericias(){
   });
 }
 
+// ---- Sincronização Inventário -> Ataques -----------------------------
+// Todo item de inventário marcado como "arma" ganha um id único e é
+// espelhado automaticamente na aba Combate (state.ataques), com o item
+// original como fonte da verdade: editar os campos de arma no Inventário
+// atualiza o ataque correspondente; desmarcar "é uma arma" ou remover o
+// item remove o ataque espelhado.
+function gerarIdItem(){
+  return "item_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+}
+function camposArmaDoItem(it){
+  return {
+    nome: it.nome, ataque: it.ataque, dano: it.dano, critico: it.critico,
+    tipo: it.tipo, alcance: it.alcance, municao: it.municao, empunhadura: it.empunhadura,
+    descricao: it.notas, tags: it.tags,
+  };
+}
+function sincronizarAtaqueDoItem(it){
+  if(!it.id) it.id = gerarIdItem();
+  const existente = state.ataques.find(a => a.origemItemId === it.id);
+  if(it.arma){
+    if(existente){
+      Object.assign(existente, camposArmaDoItem(it));
+    } else {
+      state.ataques.push({ origemItemId: it.id, aberto: true, ...camposArmaDoItem(it) });
+    }
+  } else if(existente){
+    state.ataques = state.ataques.filter(a => a !== existente);
+  }
+}
+function removerAtaqueDoItem(it){
+  if(!it.id) return;
+  state.ataques = state.ataques.filter(a => a.origemItemId !== it.id);
+}
+
 function renderAtaques(){
   const el = document.getElementById("ataquesList");
   if(state.ataques.length === 0){
@@ -686,32 +835,44 @@ function renderAtaques(){
     <div class="card arma-card ${at.aberto === false ? "" : "aberto"}" data-idx="${i}">
       <div class="arma-card-head atk-toggle">
         <span class="arma-icone">⚔</span>
-        <input type="text" class="atk-nome arma-nome-input" placeholder="Nome da arma/ataque" value="${at.nome || ""}">
+        <input type="text" class="atk-nome arma-nome-input" placeholder="Nome da arma/ataque" value="${at.nome || ""}" ${at.origemItemId ? "readonly" : ""}>
+        ${at.origemItemId ? '<span class="tag accent" title="Espelhado do Inventário — edite pelo item">Inventário</span>' : ""}
         <button type="button" class="icon-btn arma-chevron">▾</button>
       </div>
       <div class="arma-card-corpo">
         <div class="arma-stats">
-          <div class="arma-stat"><input type="text" class="atk-ataque" value="${at.ataque || ""}" placeholder="3d20+5"><label>Ataque</label></div>
-          <div class="arma-stat"><input type="text" class="atk-dano" value="${at.dano || ""}" placeholder="1d8+2"><label>Dano</label></div>
-          <div class="arma-stat"><input type="text" class="atk-critico" value="${at.critico || ""}" placeholder="x2"><label>Crítico</label></div>
+          <div class="arma-stat"><input type="text" class="atk-ataque" value="${at.ataque || ""}" placeholder="3d20+5" ${at.origemItemId ? "readonly" : ""}><label>Ataque</label></div>
+          <div class="arma-stat"><input type="text" class="atk-dano" value="${at.dano || ""}" placeholder="1d8+2" ${at.origemItemId ? "readonly" : ""}><label>Dano</label></div>
+          <div class="arma-stat"><input type="text" class="atk-critico" value="${at.critico || ""}" placeholder="x2" ${at.origemItemId ? "readonly" : ""}><label>Crítico</label></div>
         </div>
         <div class="arma-divisor"></div>
         <div class="arma-campos">
-          <div class="field"><label>Tipo</label><input type="text" class="atk-tipo" value="${at.tipo || ""}" placeholder="Corte, Fogo, Perfuração..."></div>
-          <div class="field"><label>Alcance</label><input type="text" class="atk-alcance" value="${at.alcance || ""}" placeholder="Curto, Médio, Longo..."></div>
-          <div class="field"><label>Munição</label><input type="text" class="atk-municao" value="${at.municao || ""}" placeholder="ex: Balas Longas"></div>
-          <div class="field"><label>Empunhadura</label><input type="text" class="atk-empunhadura" value="${at.empunhadura || ""}" placeholder="Uma Mão, Duas Mãos..."></div>
+          <div class="field"><label>Tipo</label><input type="text" class="atk-tipo" value="${at.tipo || ""}" placeholder="Corte, Fogo, Perfuração..." ${at.origemItemId ? "readonly" : ""}></div>
+          <div class="field"><label>Alcance</label><input type="text" class="atk-alcance" value="${at.alcance || ""}" placeholder="Curto, Médio, Longo..." ${at.origemItemId ? "readonly" : ""}></div>
+          <div class="field"><label>Munição</label><input type="text" class="atk-municao" value="${at.municao || ""}" placeholder="ex: Balas Longas" ${at.origemItemId ? "readonly" : ""}></div>
+          <div class="field"><label>Empunhadura</label><input type="text" class="atk-empunhadura" value="${at.empunhadura || ""}" placeholder="Uma Mão, Duas Mãos..." ${at.origemItemId ? "readonly" : ""}></div>
         </div>
-        <div class="field"><label>Descrição</label><textarea class="atk-descricao" placeholder="Descrição, efeitos especiais...">${at.descricao || ""}</textarea></div>
-        <div class="field"><label>Tags (separadas por vírgula)</label><input type="text" class="atk-tags" value="${at.tags || ""}" placeholder="ex: Alongada, Calibre Grosso"></div>
+        <div class="field"><label>Descrição</label><textarea class="atk-descricao" placeholder="Descrição, efeitos especiais..." ${at.origemItemId ? "readonly" : ""}>${at.descricao || ""}</textarea></div>
+        <div class="field"><label>Tags (separadas por vírgula)</label><input type="text" class="atk-tags" value="${at.tags || ""}" placeholder="ex: Alongada, Calibre Grosso" ${at.origemItemId ? "readonly" : ""}></div>
         ${at.tags ? `<div class="card-tags">${at.tags.split(",").map(t => t.trim()).filter(Boolean).map(t => `<span class="tag">${t}</span>`).join("")}</div>` : ""}
-        <div class="arma-acoes"><button class="icon-btn danger atk-remove">✕ Remover</button></div>
+        <div class="arma-acoes">
+          ${at.origemItemId
+            ? `<span class="hint-texto">Vem do item no Inventário — edite ou remova por lá.</span>`
+            : `<button class="icon-btn danger atk-remove">✕ Remover</button>`}
+        </div>
       </div>
     </div>
   `).join("");
 
   el.querySelectorAll(".card").forEach(card => {
     const i = parseInt(card.dataset.idx, 10);
+    const at = state.ataques[i];
+    card.querySelector(".atk-toggle").addEventListener("click", (e) => {
+      if(e.target.closest(".arma-nome-input")) return; // clicar pra digitar o nome não deve fechar o card
+      state.ataques[i].aberto = !(state.ataques[i].aberto !== false);
+      renderAtaques();
+    });
+    if(at.origemItemId) return; // demais campos são read-only, sincronizados a partir do item de inventário
     card.querySelector(".atk-nome").addEventListener("input", e => state.ataques[i].nome = e.target.value);
     card.querySelector(".atk-ataque").addEventListener("input", e => state.ataques[i].ataque = e.target.value);
     card.querySelector(".atk-dano").addEventListener("input", e => state.ataques[i].dano = e.target.value);
@@ -723,11 +884,6 @@ function renderAtaques(){
     card.querySelector(".atk-descricao").addEventListener("input", e => state.ataques[i].descricao = e.target.value);
     card.querySelector(".atk-tags").addEventListener("input", e => state.ataques[i].tags = e.target.value);
     card.querySelector(".atk-remove").addEventListener("click", () => { state.ataques.splice(i,1); renderAtaques(); });
-    card.querySelector(".atk-toggle").addEventListener("click", (e) => {
-      if(e.target.closest(".arma-nome-input")) return; // clicar pra digitar o nome não deve fechar o card
-      state.ataques[i].aberto = !(state.ataques[i].aberto !== false);
-      renderAtaques();
-    });
   });
 }
 
@@ -756,12 +912,27 @@ function renderHabilidades(){
 
   // habilidades de trilha — são FIXAS (não escolhidas): assim que a trilha é
   // selecionada, cada uma delas aparece sozinha aqui ao alcançar o NEX/Estágio
-  // exigido, sem precisar "adicionar" nada manualmente.
+  // exigido, sem precisar "adicionar" nada manualmente. Com Versatilidade
+  // (homebrew), cada NEX de progressão (10/25/40/65/99) pode vir da trilha
+  // principal OU da secundária, à escolha do jogador — só faz sentido pras
+  // classes "de verdade" (a Sobrevivente usa Estágio, um esquema diferente).
   const trilhaHabEl = document.getElementById("trilhaHabilidadesList");
+  const trilhaHabTituloEl = document.getElementById("trilhaHabilidadesTitulo");
   const t = trilhaAtual();
+  const tituloSecEl = document.getElementById("trilhaSecundariaTitulo");
+  const hintSecEl = document.getElementById("trilhaSecundariaHint");
+  const secEl = document.getElementById("trilhaSecundariaHabilidadesList");
+
   if(!t){
+    trilhaHabTituloEl.style.display = "";
     trilhaHabEl.innerHTML = `<div class="empty-note">${trilhaPendente() ? "Escolha uma trilha para ver suas habilidades." : "Nenhuma trilha escolhida ainda."}</div>`;
-  } else {
+    tituloSecEl.style.display = "none";
+    hintSecEl.style.display = "none";
+    secEl.innerHTML = "";
+  } else if(mundana || !temVersatilidade()){
+    // sem Versatilidade (ou classe mundana, onde ela não se aplica): só a
+    // trilha principal, do jeito tradicional.
+    trilhaHabTituloEl.style.display = "";
     const desbloqueadas = t.poderes.filter(p => p.nex <= state.nex);
     trilhaHabEl.innerHTML = desbloqueadas.length ? desbloqueadas.map(p => `
       <div class="card">
@@ -770,6 +941,86 @@ function renderHabilidades(){
         <div class="card-desc">${p.descricao}</div>
       </div>
     `).join("") : `<div class="empty-note">Nenhuma habilidade de ${t.nome} desbloqueada ainda.</div>`;
+    tituloSecEl.style.display = "none";
+    hintSecEl.style.display = "none";
+    secEl.innerHTML = "";
+  } else {
+    // Versatilidade ativa numa classe de verdade: some a lista de trilha
+    // principal (tudo passa a viver na lista unificada abaixo) e usa a
+    // seção "secundária" pra mostrar a progressão combinada + o seletor.
+    trilhaHabTituloEl.style.display = "none";
+    trilhaHabEl.innerHTML = "";
+    tituloSecEl.textContent = "Progressão de Trilha (Versatilidade)";
+    tituloSecEl.style.display = "";
+    const tSec = trilhaSecundariaAtual();
+    if(!tSec){
+      const candidatas = trilhasDisponiveisParaSecundaria();
+      hintSecEl.style.display = "";
+      hintSecEl.textContent = "Escolha sua trilha secundária:";
+      secEl.innerHTML = candidatas.length ? `
+        <div class="add-row">
+          <select id="selectTrilhaSecundaria">
+            <option value="">Escolha uma trilha...</option>
+            ${candidatas.map(ct => `<option value="${ct.id}">${ct.nome}</option>`).join("")}
+          </select>
+        </div>
+      ` : `<div class="empty-note">Não há outra trilha disponível na sua classe.</div>`;
+      const selTrilhaSec = document.getElementById("selectTrilhaSecundaria");
+      if(selTrilhaSec) selTrilhaSec.addEventListener("change", e => {
+        if(!e.target.value) return;
+        state.trilhaSecundariaId = e.target.value;
+        renderHabilidades(); renderRecursos(); renderPericias();
+      });
+    } else {
+      hintSecEl.style.display = "";
+      const tTerc = trilhaTerciariaAtual();
+      const nomesEnvolvidos = [t.nome, tSec.nome, tTerc ? tTerc.nome : null].filter(Boolean).join(" · ");
+      hintSecEl.textContent = `Trilhas: ${nomesEnvolvidos}. Escolha, pra cada NEX já alcançado, qual delas dá o poder.`;
+      const progressao = progressaoDeTrilhas();
+      secEl.innerHTML = progressao.length ? progressao.map(({tier, alvo, trilhaObj, poder}) => {
+        if(!poder) return "";
+        return `
+          <div class="card">
+            <div class="card-head"><span class="card-title">${poder.nome}</span><span class="card-meta">Slot NEX ${tier}% · ${trilhaObj.nome} (NEX ${poder.nex}% dela)</span></div>
+            <div class="trilha-tier-toggle" data-tier="${tier}">
+              <button type="button" class="trilha-tier-opcao ${alvo === "principal" ? "selecionada" : ""}" data-alvo="principal">${t.nome}</button>
+              <button type="button" class="trilha-tier-opcao ${alvo === "secundaria" ? "selecionada" : ""}" data-alvo="secundaria">${tSec.nome}</button>
+              ${tTerc ? `<button type="button" class="trilha-tier-opcao ${alvo === "terciaria" ? "selecionada" : ""}" data-alvo="terciaria">${tTerc.nome}</button>` : ""}
+            </div>
+            ${bonusBadge(poder.bonus)}
+            <div class="card-desc">${poder.descricao}</div>
+          </div>
+        `;
+      }).join("") : `<div class="empty-note">Nenhum NEX de progressão de trilha alcançado ainda.</div>`;
+
+      // Versatilidade Amplificada (paranormal): destrava a escolha de uma
+      // TERCEIRA trilha, uma vez que a secundária já esteja escolhida.
+      if(!tTerc && temVersatilidadeAmplificada()){
+        const candidatasTerc = trilhasDisponiveisParaTerciaria();
+        secEl.innerHTML += candidatasTerc.length ? `
+          <div class="add-row">
+            <select id="selectTrilhaTerciaria">
+              <option value="">Versatilidade Amplificada: escolha uma 3ª trilha...</option>
+              ${candidatasTerc.map(ct => `<option value="${ct.id}">${ct.nome}</option>`).join("")}
+            </select>
+          </div>
+        ` : `<div class="empty-note">Versatilidade Amplificada: não há uma 3ª trilha disponível na sua classe ainda.</div>`;
+        const selTrilhaTerc = document.getElementById("selectTrilhaTerciaria");
+        if(selTrilhaTerc) selTrilhaTerc.addEventListener("change", e => {
+          if(!e.target.value) return;
+          state.trilhaTerciariaId = e.target.value;
+          renderHabilidades(); renderRecursos(); renderPericias();
+        });
+      }
+
+      secEl.querySelectorAll(".trilha-tier-opcao").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          const tier = parseInt(e.target.closest(".trilha-tier-toggle").dataset.tier, 10);
+          state.trilhaTierAtribuicoes[tier] = e.target.dataset.alvo;
+          renderHabilidades(); renderRecursos(); renderPericias();
+        });
+      });
+    }
   }
 
   // poderes escolhidos
@@ -793,7 +1044,12 @@ function renderHabilidades(){
       btn.addEventListener("click", (e) => {
         const i = parseInt(e.target.closest(".card").dataset.idx, 10);
         state.poderesEscolhidos.splice(i,1);
-        renderHabilidades(); renderRecursos(); renderPericias();
+        if(!temVersatilidade()){
+          state.trilhaSecundariaId = "";
+          state.trilhaTerciariaId = "";
+          state.trilhaTierAtribuicoes = {};
+        }
+        renderHabilidades(); renderRecursos(); renderPericias(); renderIdentidadeCampos();
       });
     });
   }
@@ -834,6 +1090,7 @@ function renderHabilidades(){
       btn.addEventListener("click", (e) => {
         const i = parseInt(e.target.closest(".card").dataset.idx, 10);
         state.poderesParanormais.splice(i,1);
+        if(!temVersatilidadeAmplificada()) state.trilhaTerciariaId = "";
         renderHabilidades();
       });
     });
@@ -957,13 +1214,43 @@ function renderRituais(){
   });
 }
 
+function calcularPesoInventario(){
+  return state.inventario.reduce((acc, it) => acc + (parseFloat(it.espaco) || 0) * (it.qtd || 1), 0);
+}
+function formatarPeso(v){
+  return Number.isInteger(v) ? String(v) : v.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+}
+// Capacidade de carga: Força × ESPACOS_POR_FORCA espaços. Esse multiplicador
+// é só uma estimativa simples pra dar uma referência visual — ajuste o
+// número abaixo se sua mesa usar outra regra de carga.
+const ESPACOS_POR_FORCA = 5;
+function calcularCapacidadeCarga(){
+  return Math.max(state.atributos.for, 1) * ESPACOS_POR_FORCA;
+}
+function atualizarPesoInventario(){
+  const peso = calcularPesoInventario();
+  const capacidade = calcularCapacidadeCarga();
+  const valorEl = document.getElementById("inventarioPesoValor");
+  const capEl = document.getElementById("inventarioCapacidadeValor");
+  const barraEl = document.getElementById("inventarioToolbar");
+  if(valorEl) valorEl.textContent = formatarPeso(peso);
+  if(capEl) capEl.textContent = formatarPeso(capacidade);
+  if(barraEl) barraEl.classList.toggle("sobrecarregado", peso > capacidade);
+}
+
 function renderInventario(){
   const el = document.getElementById("inventarioList");
+  state.inventario.forEach(it => {
+    if(!it.id) it.id = gerarIdItem();
+    if(it.arma) sincronizarAtaqueDoItem(it); else removerAtaqueDoItem(it);
+  });
+  atualizarPesoInventario();
   if(state.inventario.length === 0){
     el.innerHTML = `<div class="empty-note">Inventário vazio.</div>`;
     return;
   }
-  el.innerHTML = state.inventario.map((it, i) => `
+  el.innerHTML = state.inventario.map((it, i) => {
+    return `
     <div class="card arma-card ${it.aberto === false ? "" : "aberto"}" data-idx="${i}">
       <div class="arma-card-head atk-toggle">
         <span class="arma-icone">${it.arma ? "⚔" : "🎒"}</span>
@@ -973,6 +1260,7 @@ function renderInventario(){
       </div>
       <div class="arma-card-corpo">
         <label class="inv-arma-toggle"><input type="checkbox" class="inv-arma-check" ${it.arma ? "checked" : ""}> É uma arma</label>
+        ${it.arma ? `<p class="hint-texto">Armas aparecem automaticamente na aba Combate → Ataques.</p>` : ""}
         ${it.arma ? `
           <div class="arma-stats">
             <div class="arma-stat"><input type="text" class="inv-ataque" value="${it.ataque || ""}" placeholder="3d20+5"><label>Ataque</label></div>
@@ -983,7 +1271,7 @@ function renderInventario(){
         ` : ""}
         <div class="arma-campos">
           <div class="field"><label>Quantidade</label><input type="number" class="inv-qtd" value="${it.qtd || 1}"></div>
-          <div class="field"><label>Espaço</label><input type="text" class="inv-espaco" value="${it.espaco || ""}" placeholder="ex: 1"></div>
+          <div class="field"><label>Espaço (por unidade)</label><input type="text" class="inv-espaco" value="${it.espaco || ""}" placeholder="ex: 1"></div>
           ${it.arma ? `
             <div class="field"><label>Tipo</label><input type="text" class="inv-tipo" value="${it.tipo || ""}" placeholder="Corte, Fogo, Perfuração..."></div>
             <div class="field"><label>Categoria</label><input type="text" class="inv-categoria" value="${it.categoria || ""}" placeholder="Simples, Tática, Pesada..."></div>
@@ -1000,19 +1288,32 @@ function renderInventario(){
         <div class="arma-acoes"><button class="icon-btn danger inv-remove">✕ Remover</button></div>
       </div>
     </div>
-  `).join("");
+  `;
+  }).join("");
 
   el.querySelectorAll(".card").forEach(card => {
     const i = parseInt(card.dataset.idx, 10);
-    card.querySelector(".inv-nome").addEventListener("input", e => state.inventario[i].nome = e.target.value);
+    card.querySelector(".inv-nome").addEventListener("input", e => {
+      state.inventario[i].nome = e.target.value;
+      if(state.inventario[i].arma){ sincronizarAtaqueDoItem(state.inventario[i]); renderAtaques(); }
+    });
     card.querySelector(".inv-qtd").addEventListener("input", e => {
       state.inventario[i].qtd = parseInt(e.target.value,10)||1;
       card.querySelector(".inv-qtd-badge").textContent = "×" + state.inventario[i].qtd;
+      atualizarPesoInventario();
     });
-    card.querySelector(".inv-espaco").addEventListener("input", e => state.inventario[i].espaco = e.target.value);
-    card.querySelector(".inv-notas").addEventListener("input", e => state.inventario[i].notas = e.target.value);
+    card.querySelector(".inv-espaco").addEventListener("input", e => {
+      state.inventario[i].espaco = e.target.value;
+      atualizarPesoInventario();
+    });
+    card.querySelector(".inv-notas").addEventListener("input", e => {
+      state.inventario[i].notas = e.target.value;
+      if(state.inventario[i].arma){ sincronizarAtaqueDoItem(state.inventario[i]); renderAtaques(); }
+    });
     card.querySelector(".inv-arma-check").addEventListener("change", e => {
       state.inventario[i].arma = e.target.checked;
+      sincronizarAtaqueDoItem(state.inventario[i]);
+      renderAtaques();
       renderInventario();
     });
     const camposArma = {
@@ -1022,9 +1323,17 @@ function renderInventario(){
     };
     Object.entries(camposArma).forEach(([seletor, campo]) => {
       const campoEl = card.querySelector(seletor);
-      if(campoEl) campoEl.addEventListener("input", e => state.inventario[i][campo] = e.target.value);
+      if(campoEl) campoEl.addEventListener("input", e => {
+        state.inventario[i][campo] = e.target.value;
+        if(state.inventario[i].arma){ sincronizarAtaqueDoItem(state.inventario[i]); renderAtaques(); }
+      });
     });
-    card.querySelector(".inv-remove").addEventListener("click", () => { state.inventario.splice(i,1); renderInventario(); });
+    card.querySelector(".inv-remove").addEventListener("click", () => {
+      removerAtaqueDoItem(state.inventario[i]);
+      state.inventario.splice(i,1);
+      renderAtaques();
+      renderInventario();
+    });
     card.querySelector(".atk-toggle").addEventListener("click", (e) => {
       if(e.target.closest(".arma-nome-input")) return;
       state.inventario[i].aberto = !(state.inventario[i].aberto !== false);
@@ -1108,6 +1417,9 @@ function bindEventosEstaticos(){
       state.preTransicao = JSON.parse(JSON.stringify({
         nex: state.nex,
         trilhaId: state.trilhaId,
+        trilhaSecundariaId: state.trilhaSecundariaId,
+        trilhaTerciariaId: state.trilhaTerciariaId,
+        trilhaTierAtribuicoes: state.trilhaTierAtribuicoes,
         poderesEscolhidos: state.poderesEscolhidos,
         poderesParanormais: state.poderesParanormais,
         rituaisConhecidos: state.rituaisConhecidos,
@@ -1120,6 +1432,9 @@ function bindEventosEstaticos(){
 
       state.classeId = novoId;
       state.trilhaId = "";
+      state.trilhaSecundariaId = "";
+      state.trilhaTerciariaId = "";
+      state.trilhaTierAtribuicoes = {};
       // Sempre começa em NEX 5% ao virar uma classe "de verdade" — o Estágio
       // do Sobrevivente (0/5/10/15/20 internamente) não é NEX real, então não
       // faz sentido carregar esse valor para a nova classe.
@@ -1140,6 +1455,9 @@ function bindEventosEstaticos(){
       if(state.preTransicao){
         state.nex = state.preTransicao.nex;
         state.trilhaId = state.preTransicao.trilhaId;
+        state.trilhaSecundariaId = state.preTransicao.trilhaSecundariaId || "";
+        state.trilhaTerciariaId = state.preTransicao.trilhaTerciariaId || "";
+        state.trilhaTierAtribuicoes = state.preTransicao.trilhaTierAtribuicoes || {};
         state.poderesEscolhidos = state.preTransicao.poderesEscolhidos;
         state.poderesParanormais = state.preTransicao.poderesParanormais;
         state.rituaisConhecidos = state.preTransicao.rituaisConhecidos;
@@ -1148,6 +1466,9 @@ function bindEventosEstaticos(){
         // ficha antiga sem snapshot (ex: carregada de um save de antes desta versão)
         state.nex = 0;
         state.trilhaId = "";
+        state.trilhaSecundariaId = "";
+        state.trilhaTerciariaId = "";
+        state.trilhaTierAtribuicoes = {};
       }
       state.classeId = novoId;
       state.bonusTransicao = { pv: 0, pe: 0 };
@@ -1157,6 +1478,10 @@ function bindEventosEstaticos(){
     } else {
       state.classeId = novoId;
       state.trilhaId = "";
+      state.trilhaSecundariaId = "";
+      state.trilhaTerciariaId = "";
+      state.trilhaTierAtribuicoes = {};
+      state.poderesEscolhidos = state.poderesEscolhidos.filter(p => p.nome !== "Versatilidade");
     }
     sincronizarNexConfirmado();
 
@@ -1164,6 +1489,12 @@ function bindEventosEstaticos(){
   });
   on("fTrilha", "change", e => {
     state.trilhaId = e.target.value;
+    // trocar a trilha principal invalida a escolha de trilha secundária (ela
+    // era "a outra trilha" em relação à principal antiga) — mas o poder
+    // Versatilidade em si continua; o jogador só precisa escolher de novo.
+    state.trilhaSecundariaId = "";
+    state.trilhaTerciariaId = "";
+    state.trilhaTierAtribuicoes = {};
     sincronizarNexConfirmado();
     renderIdentidadeCampos(); renderRecursos(); renderHabilidades();
   });
@@ -1190,6 +1521,13 @@ function bindEventosEstaticos(){
     document.getElementById("cdDefesa").textContent = defesa();
   });
 
+  on("fLimitePericias", "input", e => {
+    state.limitePericiasTreinadas = e.target.value === "" ? null : (parseInt(e.target.value, 10) || 0);
+    const qtdTreinadas = Object.values(state.pericias).filter(p => p.treino > 0).length;
+    document.getElementById("periciasTreinadasAviso").style.display =
+      (state.limitePericiasTreinadas && qtdTreinadas > state.limitePericiasTreinadas) ? "" : "none";
+  });
+
   on("pericBusca", "input", renderPericias);
 
   on("btnAddAtaque", "click", () => {
@@ -1207,7 +1545,14 @@ function bindEventosEstaticos(){
       preRequisito: escolhido.preRequisito, origemTipo: escolhido.origemTipo,
       bonus: escolhido.bonus || null,
     });
-    renderHabilidades(); renderRecursos(); renderPericias();
+    if(escolhido.nome === "Versatilidade"){
+      mostrarModalConfirmacao({
+        titulo: "Versatilidade",
+        mensagem: `Escolha sua trilha secundária em Habilidades → "Progressão de Trilha". A partir daí, você pode escolher, em cada NEX de progressão de trilha, se o poder vem da trilha principal ou da secundária.`,
+        somenteOk: true,
+      });
+    }
+    renderHabilidades(); renderRecursos(); renderPericias(); renderIdentidadeCampos();
   });
 
   on("btnAddPoderParanormal", "click", () => {
@@ -1233,7 +1578,7 @@ function bindEventosEstaticos(){
 
   on("btnAddItem", "click", () => {
     state.inventario.push({
-      nome:"", qtd:1, espaco:"", notas:"", aberto:true,
+      id: gerarIdItem(), nome:"", qtd:1, espaco:"", notas:"", aberto:true,
       arma:false, ataque:"", dano:"", critico:"", tipo:"", categoria:"", alcance:"", municao:"", empunhadura:"", tags:"",
     });
     renderInventario();
@@ -1327,6 +1672,41 @@ function bindEventosEstaticos(){
       inputCarregar.value = "";
     };
     reader.readAsText(file);
+  });
+
+  // foto do agente — fica só no navegador/arquivo salvo, nunca é enviada pra
+  // lugar nenhum. Redimensiona no canvas antes de guardar como base64, pra
+  // não inflar demais o arquivo .json.
+  const fotoInput = document.getElementById("fotoAgenteInput");
+  on("fotoAgenteWrap", "click", (e) => {
+    if(e.target.closest(".foto-agente-remover")) return;
+    fotoInput.click();
+  });
+  fotoInput.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const leitor = new FileReader();
+    leitor.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const lado = 480;
+        const escala = Math.min(1, lado / Math.max(img.width, img.height));
+        const w = Math.round(img.width * escala), h = Math.round(img.height * escala);
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        state.foto = canvas.toDataURL("image/jpeg", 0.85);
+        renderIdentidadeCampos();
+      };
+      img.src = ev.target.result;
+    };
+    leitor.readAsDataURL(file);
+    fotoInput.value = "";
+  });
+  on("btnRemoverFoto", "click", (e) => {
+    e.stopPropagation();
+    state.foto = "";
+    renderIdentidadeCampos();
   });
 
   bindCompendio();

@@ -44,27 +44,36 @@
   <!-- ============================================================ IDENTIDADE -->
   <section class="panel">
     <h2>Agente</h2>
-    <div class="identity-grid">
-      <div class="field">
-        <label for="fNome">Nome do Agente</label>
-        <input type="text" id="fNome" placeholder="Nome do personagem">
+    <div class="agente-topo">
+      <div class="foto-agente" id="fotoAgenteWrap" title="Clique para adicionar uma foto">
+        <img id="fotoAgentePreview" alt="Foto do personagem" style="display:none;">
+        <span class="foto-agente-placeholder" id="fotoAgentePlaceholder">+ Foto</span>
+        <input type="file" id="fotoAgenteInput" accept="image/*" class="file-input-hidden">
+        <button type="button" id="btnRemoverFoto" class="icon-btn danger foto-agente-remover" style="display:none;" title="Remover foto">✕</button>
       </div>
-      <div class="field">
-        <label for="fJogador">Jogador</label>
-        <input type="text" id="fJogador" placeholder="Seu nome">
-      </div>
-      <div class="field">
-        <label for="fOrigem">Origem</label>
-        <select id="fOrigem"></select>
-      </div>
-      <div class="field">
-        <label for="fClasse">Classe</label>
-        <select id="fClasse"></select>
-      </div>
-      <div class="field">
-        <label for="fTrilha">Trilha</label>
-        <select id="fTrilha"></select>
-        <small id="fTrilhaAviso" class="campo-aviso" style="display:none;">Obrigatório a partir do Estágio 2</small>
+      <div class="identity-grid">
+        <div class="field">
+          <label for="fNome">Nome do Agente</label>
+          <input type="text" id="fNome" placeholder="Nome do personagem">
+        </div>
+        <div class="field">
+          <label for="fJogador">Jogador</label>
+          <input type="text" id="fJogador" placeholder="Seu nome">
+        </div>
+        <div class="field">
+          <label for="fOrigem">Origem</label>
+          <select id="fOrigem"></select>
+        </div>
+        <div class="field">
+          <label for="fClasse">Classe</label>
+          <select id="fClasse"></select>
+        </div>
+        <div class="field">
+          <label for="fTrilha">Trilha</label>
+          <select id="fTrilha"></select>
+          <small id="fTrilhaAviso" class="campo-aviso" style="display:none;">Obrigatório a partir do Estágio 2</small>
+          <small id="fTrilhaSecundariaInfo" class="campo-aviso campo-aviso-ok" style="display:none;"></small>
+        </div>
       </div>
     </div>
     <div class="field" style="max-width:340px; margin-top:6px;">
@@ -114,7 +123,11 @@
       </div>
       <div class="cd-item"><div class="cd-label">PE / Turno</div><div class="cd-val" id="cdPePorTurno">2</div></div>
 
-      <div class="cd-item"><div class="cd-label">Perícias Treinadas</div><div class="cd-val" id="cdPericiasQtd">0</div></div>
+      <div class="cd-item">
+        <div class="cd-label">Perícias Treinadas <span id="periciasTreinadasAviso" class="campo-aviso" style="display:none;" title="Passou do limite que você definiu abaixo">⚠</span></div>
+        <div class="cd-val" id="cdPericiasQtd">0</div>
+        <input type="number" id="fLimitePericias" class="pericias-limite-input" placeholder="limite (opcional)" min="0">
+      </div>
     </div>
   </section>
 
@@ -163,8 +176,12 @@
           <h3 id="nexTrackTitle" style="font-size:.85rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-strong);margin-top:18px;">Progressão de NEX</h3>
           <div class="nex-track" id="nexTrack"></div>
 
-          <h3 style="font-size:.85rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-strong);margin-top:18px;">Habilidades de Trilha</h3>
+          <h3 id="trilhaHabilidadesTitulo" style="font-size:.85rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-strong);margin-top:18px;">Habilidades de Trilha</h3>
           <div class="card-list" id="trilhaHabilidadesList"></div>
+
+          <h3 id="trilhaSecundariaTitulo" style="font-size:.85rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-strong);margin-top:18px;display:none;">Progressão de Trilha (Versatilidade)</h3>
+          <p id="trilhaSecundariaHint" class="hint-texto" style="display:none;">Escolha o poder geral "Versatilidade" para poder ter uma segunda trilha.</p>
+          <div class="card-list" id="trilhaSecundariaHabilidadesList"></div>
         </div>
         <div>
           <h3 style="font-size:.85rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-strong);">Poderes Escolhidos</h3>
@@ -200,6 +217,11 @@
 
     <!-- INVENTARIO -->
     <div class="tab-panel" id="tab-inventario">
+      <div class="inventario-toolbar" id="inventarioToolbar">
+        <span class="inventario-peso-label">Peso total (espaços)</span>
+        <span class="inventario-peso-valor"><span id="inventarioPesoValor">0</span> / <span id="inventarioCapacidadeValor">5</span></span>
+      </div>
+      <p class="hint-texto">Capacidade estimada a partir da Força (ajustável em <code>ESPACOS_POR_FORCA</code>, no código). Ultrapassar o limite só destaca em vermelho — não bloqueia nada.</p>
       <div class="card-list" id="inventarioList"></div>
       <button id="btnAddItem" class="ghost" style="margin-top:10px;">+ Adicionar Item</button>
     </div>
